@@ -15,4 +15,4 @@ Checklist:
 -  GB->GBC modes switching
 -  Adding GBC features and $CB opcodes
 -  Save/Load state
--  Bugfixing, peripherals, ?
+-  Bugfixing, peripherals, improving accuracy
