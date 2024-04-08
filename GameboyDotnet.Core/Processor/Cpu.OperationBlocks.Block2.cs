@@ -1,7 +1,7 @@
 ﻿using GameboyDotnet.Extensions;
 using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {

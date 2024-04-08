@@ -1,13 +1,18 @@
-﻿namespace GameboyDotnet.Components.Memory.BuildingBlocks;
+﻿using GameboyDotnet.Components.Memory.BuildingBlocks;
+
+namespace GameboyDotnet.Memory.BuildingBlocks;
 
 public class SwitchableBank : FixedBank, ISwitchableMemory
 {
     public int CurrentBank { get; set; }
-    public required int BankSizeInBytes { get; init; }
-    public required int NumberOfBanks { get; init; }
-
-    public SwitchableBank()
+    public int BankSizeInBytes { get; init; }
+    public int NumberOfBanks { get; init; }
+    
+    public SwitchableBank(int startAddress, int endAddress, string name, int bankSizeInBytes, int numberOfBanks) 
+        : base(startAddress, endAddress, name)
     {
+        BankSizeInBytes = bankSizeInBytes;
+        NumberOfBanks = numberOfBanks;
         MemorySpace = new byte[BankSizeInBytes * NumberOfBanks];
     }
 

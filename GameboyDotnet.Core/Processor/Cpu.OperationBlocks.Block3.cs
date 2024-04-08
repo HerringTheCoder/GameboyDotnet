@@ -1,7 +1,7 @@
 ﻿using GameboyDotnet.Extensions;
 using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {
@@ -11,7 +11,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToA(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - ADD A, r8", opCode);
-        var value = MemoryController.ReadByte(Register.PC);
+        var value = MemoryController.ReadByte(Register.PC.Add(1));
         Set8BitAddCarryFlags(Register.A, value);
         Register.A = Register.A.Add(value);
         return (2, 8);
@@ -129,7 +129,7 @@ public partial class Cpu
         _logger.LogDebug("{opcode:X2} - RET", opCode);
         Register.PC = MemoryController.ReadWord(Register.SP);
         Register.SP = Register.SP.Add(2);
-        return (1, 16);
+        return (0, 16); //Actual length: 1, but the correct value of PC is already set
     }
 
     
@@ -170,7 +170,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) JumpImmediate16Bit(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - JP nn", opCode);
-        Register.PC = MemoryController.ReadWord(Register.PC);
+        Register.PC = MemoryController.ReadWord(Register.PC.Add(1));
         return (0, 16); //Actual length: 3, but the correct value of PC is already set
     }
 
@@ -219,15 +219,8 @@ public partial class Cpu
         return (0, 16); //PC already set, thus 0
     }
 
-    private (byte instructionBytesLength, byte durationTStates) ExecuteBlockCB(ref byte opCode)
-    {
-        _logger.LogDebug("{opcode:X2} - CB", opCode);
-        throw new NotImplementedException();
-        //TODO: Implement block CB
-    }
-
     /// <summary>
-    ///  0xC1 or 0xC9 or 0xD1 or 0xD9  - POP AF - Pop 16-bit value from stack into AF
+    ///  0xC1 or 0xD1 or 0xE1 or 0xF1  - POP AF - Pop 16-bit value from stack into AF
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) PopR16(ref byte opCode, byte r16stk)
     {
@@ -246,7 +239,7 @@ public partial class Cpu
                 Register.HL = poppedValue;
                 break;
             case 3:
-                Register.A = (byte)(poppedValue & 0x00FF);
+                Register.A = (byte)((poppedValue & 0xFF00) >> 8);
                 SetPopFlags(ref poppedValue);
                 break;
             default:

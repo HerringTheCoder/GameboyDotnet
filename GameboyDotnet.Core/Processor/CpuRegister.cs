@@ -9,15 +9,18 @@ namespace GameboyDotnet.Components.Cpu;
 /// </summary>
 public class CpuRegister
 {
-    private ushort _af { get; set; }
-    private ushort _bc { get; set; }
-    private ushort _de { get; set; }
-    private ushort _hf { get; set; }
-    
     /// <summary>
     /// IME - Interrupt Master Enable flag
     /// </summary>
     public bool InterruptsEnabled { get; set; }
+
+    private ushort _af { get; set; } = 0x01B0;
+
+    private ushort _bc { get; set; } = 0x0013;
+
+    private ushort _de { get; set; } = 0x00D8;
+
+    private ushort _hl { get; set; } = 0x014D;
 
     /// <summary>
     /// Stack pointer, always accessed as 16-bit
@@ -27,7 +30,7 @@ public class CpuRegister
     /// <summary>
     /// Program counter, always accessed as 16-bit
     /// </summary>
-    public ushort PC { get; set; }
+    public ushort PC { get; set; } = 0x0100;
 
     /// <summary>
     /// Contains accumulator and flags, splits into A and F
@@ -151,8 +154,8 @@ public class CpuRegister
     /// </summary>
     public ushort HL
     {
-        get => _hf;
-        set => _hf = value;
+        get => _hl;
+        set => _hl = value;
     }
 
     /// <summary>
@@ -160,8 +163,8 @@ public class CpuRegister
     /// </summary>
     public byte H
     {
-        get => (byte)(_hf >> 8);
-        set => _hf = (ushort)((_hf & 0x00FF) | (value << 8));
+        get => (byte)(_hl >> 8);
+        set => _hl = (ushort)((_hl & 0x00FF) | (value << 8));
     }
 
     /// <summary>
@@ -169,8 +172,8 @@ public class CpuRegister
     /// </summary>
     public byte L
     {
-        get => (byte)(_hf & 0x00FF);
-        set => _hf = (ushort)((_hf & 0xFF00) | value);
+        get => (byte)(_hl & 0x00FF);
+        set => _hl = (ushort)((_hl & 0xFF00) | value);
     }
 
     public void SetRegisterByR16(int r16, ushort value)

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 // ReSharper disable InconsistentNaming
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {
@@ -171,7 +171,7 @@ public partial class Cpu
         var oldCarryFlag = Register.CarryFlag;
         (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0; //least significant bit
-        Register.A = (byte)(Register.A >> 1 | (oldCarryFlag ? 0b1000_0000 : 0));
+        Register.A = (byte)((Register.A >> 1) | (oldCarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
     }
 
@@ -189,7 +189,7 @@ public partial class Cpu
         _logger.LogDebug("{opCode:X2} - Rotating right register A through carry", opCode);
         (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0;
-        Register.A = (byte)(Register.A >> 1 | (Register.CarryFlag ? 0b1000_0000 : 0));
+        Register.A = (byte)((Register.A >> 1) | (Register.CarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
     }
 
@@ -279,8 +279,9 @@ public partial class Cpu
     /// <summary>
     /// stop - 0x10 - Stop CPU, also used to switch GBC double speed mode
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) Stop()
+    private (byte instructionBytesLength, byte durationTStates) Stop(ref byte opCode)
     {
+        _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
         IsHalted = true;
         //TODO: Implement GBC mode switch if needed
         return (2, 4);

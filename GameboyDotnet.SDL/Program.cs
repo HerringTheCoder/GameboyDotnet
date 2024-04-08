@@ -1,5 +1,7 @@
 ﻿using Chip8Emu.SDL;
 using GameboyDotnet;
+using GameboyDotnet.Components;
+using GameboyDotnet.Components.Cpu;
 using GameboyDotnet.SDL;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
@@ -14,7 +16,7 @@ configuration.GetSection("EmulatorSettings").Bind(emulatorSettings);
 var logger = LoggerHelper.GetLogger<Gameboy>(emulatorSettings.LogLevel);
 
 var (renderer, window) = Renderer.InitializeRendererAndWindow(logger, emulatorSettings);
-var gameboy = new Gameboy(logger);
+var gameboy = new Gameboy(logger, true);
 var keyboardMapper = new KeyboardMapper(emulatorSettings.Keymap);
 var romPath = Path.IsPathRooted(emulatorSettings.RomPath)
     ? Path.Combine(emulatorSettings.RomPath)

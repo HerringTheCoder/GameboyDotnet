@@ -1,4 +1,4 @@
-﻿namespace GameboyDotnet.Components.Cpu;
+﻿namespace GameboyDotnet.Processor;
 
 //Refer to: https://gbdev.io/pandocs/CPU_Instruction_Set.html#block-0 for blocks division
 public partial class Cpu
@@ -31,7 +31,7 @@ public partial class Cpu
             0x3F => ComplementCarryFlag(ref opCode),
             0x18 => JumpRelativeImmediate8bit(ref opCode),
             0x20 or 0x28 or 0x30 or 0x38 => JumpRelativeConditionalImmediate8bit(ref opCode),
-            0b000_1_0000 => Stop(),
+            0x10 => Stop(ref opCode),
             _ => NoOperation(ref opCode)
         };
     }
@@ -40,7 +40,7 @@ public partial class Cpu
     {
         return opCode switch
         {
-            0b01110110 => Halt(),
+            0x76 => Halt(),
             _ => LoadSourceR8IntoDestinationR8(ref opCode, GetDestinationR8(ref opCode), GetSourceR8(ref opCode))
         };
     }
@@ -91,7 +91,7 @@ public partial class Cpu
             0xCD => CallImmediate16Bit(ref opCode),
             0xCF => Restart(ref opCode, n3: GetDestinationR8(ref opCode)), //n3 covers the same bits as destination r8
             0xCB => ExecuteBlockCB(ref opCode),
-            0xC1 or 0xC9 or 0xD1 or 0xD9 => PopR16(ref opCode, GetR16(ref opCode)),
+            0xC1 or 0xD1 or 0xE1 or 0xF1 => PopR16(ref opCode, GetR16(ref opCode)),
             0xC5 or 0xD5 or 0xE5 or 0xF5 => PushR16(ref opCode, GetR16(ref opCode)),
             0xE2 => LoadAIntoFF00PlusCAddress(ref opCode),
             0xE0 => LoadAIntoImmediate8BitAddress(ref opCode),
@@ -104,9 +104,15 @@ public partial class Cpu
             0xF9 => LoadHLIntoSP(ref opCode),
             0xF3 => DisableInterrupts(ref opCode),
             0xFB => EnableInterrupts(ref opCode),
-            0xDB or 0xDD or 0xE3 or 0xE4 or 0xEB or 0xEC or 0xED or 0xF4 or 0xFC or 0xFD 
+            0xDB or 0xDD or 0xE3 or 0xE4 or 0xEB or 0xEC or 0xED or 0xF4 or 0xFC or 0xFD
                 => throw new Exception("CPU Hard Lock!"),
             _ => throw new ArgumentOutOfRangeException(nameof(opCode), opCode, null)
         };
+        
+        private (byte instructionBytesLength, byte durationTStates) ExecuteBlockCB()
+        {
+            throw new NotImplementedException("CB");
+            //TODO: Implement block CB
+        }
     }
 }

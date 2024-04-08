@@ -1,6 +1,6 @@
 ﻿using GameboyDotnet.Components;
-using GameboyDotnet.Components.Cpu;
 using Microsoft.Extensions.Logging;
+using GameboyDotnet.Processor;
 
 namespace GameboyDotnet;
 
@@ -10,12 +10,11 @@ public partial class Gameboy
     public Cpu Cpu { get; }
     public Lcd Lcd { get; } = new();
     public byte? PressedKeyValue { get; set; }
-    
-    
-    public Gameboy(ILogger<Gameboy> logger)
+
+    public Gameboy(ILogger<Gameboy> logger, bool isTestEnvironment = false)
     {
         _logger = logger;
-        Cpu = new Cpu(logger);
+        Cpu = new Cpu(logger, isTestEnvironment);
     }
 
     public void LoadProgram(FileStream stream)
@@ -36,11 +35,10 @@ public partial class Gameboy
                 CpuThread(cyclesPerSecond, operationsPerCycle, ctsToken),
                 DisplayThread(ticksPerSecond, ctsToken)
             );
-
         }
-        catch (AggregateException ex)
+        catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "An error occurred while running the Gameboy");
             throw;
         }
     }

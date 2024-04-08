@@ -1,16 +1,22 @@
-﻿namespace GameboyDotnet.Components.Memory.BuildingBlocks;
+﻿using GameboyDotnet.Components.Memory.BuildingBlocks;
+
+namespace GameboyDotnet.Memory.BuildingBlocks;
 
 public class FixedBank : IMemory
 {
-    public required int StartAddress { get; init; } = 0;
-    public required int EndAddress { get; init; } = 0;
+    public int StartAddress { get; init; } = 0;
+    public int EndAddress { get; init; } = 0;
     public byte[] MemorySpace { get; init; }
-
-    internal FixedBank()
+    public string Name { get; init; }
+    
+    public FixedBank(int startAddress, int endAddress, string name)
     {
+        StartAddress = startAddress;
+        EndAddress = endAddress;
+        Name = name;
         MemorySpace = new byte[EndAddress - StartAddress + 1];
     }
-
+    
     public virtual byte ReadByte(ref ushort address)
     {
         return MemorySpace[address - StartAddress];
@@ -18,6 +24,11 @@ public class FixedBank : IMemory
 
     public virtual void WriteByte(ref ushort address, ref byte value)
     {
+        if (address is 0xFF01 or 0xFF02)
+        {
+            Console.WriteLine($"SB WRITE: {value:X2}");
+        }
+        
         MemorySpace[address - StartAddress] = value;
     }
 
@@ -28,6 +39,11 @@ public class FixedBank : IMemory
 
     public virtual void WriteWord(ref ushort address, ref ushort value)
     {
+        if (address is 0xFF01 or 0xFF02)
+        {
+            Console.WriteLine($"SB WRITE: {value:X2}");
+        }
+        
         MemorySpace[address - StartAddress] = (byte)(value & 0xFF);
         MemorySpace[address - StartAddress + 1] = (byte)(value >> 8);
     }

@@ -1,47 +1,88 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using GameboyDotnet.Components;
+using GameboyDotnet.Components.Cpu;
+using GameboyDotnet.Extensions;
+using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {
     internal CpuRegister Register { get; set; } = new();
     internal MemoryController MemoryController { get; }
     public bool IsHalted { get; set; }
-
     private readonly ILogger<Gameboy> _logger;
+    
+    private readonly bool _isTestEnvironment;
+    private int _testLogCounter = 0;
 
-    public Cpu(ILogger<Gameboy> logger)
+    public Cpu(ILogger<Gameboy> logger, bool isTestEnvironment)
     {
         _logger = logger;
-        MemoryController = new MemoryController(logger);
+        _isTestEnvironment = isTestEnvironment;
+        MemoryController = new MemoryController(logger, isTestEnvironment);
     }
 
     public void ExecuteNextOperation()
     {
+        if(_isTestEnvironment)
+            LogTestOutput();
+        
         var opCode = MemoryController.ReadByte(Register.PC);
         
         //Idea of operation blocks is based on: https://gbdev.io/pandocs/CPU_Instruction_Set.html
-        var operationBlock = opCode & 0b11000000;
+        var operationBlock = (opCode & 0b11000000) >> 6;
 
         var operationSize = operationBlock switch
         {
-            0b00 => ExecuteBlock0(ref opCode),
-            0b01 => ExecuteBlock1(ref opCode),
-            0b10 => ExecuteBlock2(ref opCode),
-            0b11 => ExecuteBlock3(ref opCode),
+            0x0 => ExecuteBlock0(ref opCode),
+            0x1 => ExecuteBlock1(ref opCode),
+            0x2 => ExecuteBlock2(ref opCode),
+            0x3 => ExecuteBlock3(ref opCode),
             _ => throw new NotImplementedException($"Operation {opCode:X} not implemented")
         };
 
         Register.PC += operationSize.instructionBytesLength;
     }
+    
+    private void LogTestOutput()
+    {
+        _testLogCounter++;
+        if (_testLogCounter % 500 == 0)
+        {
+            Console.WriteLine($"Operation number: {_testLogCounter}");
+        }
+        var pcmem0 = MemoryController.ReadByte(Register.PC);
+        var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
+        var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
+        var pcmem3 = MemoryController.ReadByte(Register.PC.Add(3));
+        
+        string filePath = @"F:\Emulators\Gameboy\TestOutput\test1.txt";
+
+        // Append the data to the file or create it if it doesn't exist
+        using (StreamWriter writer = File.AppendText(filePath))
+        {
+            writer.WriteLine(
+                $"A:{Register.A:X2} " +
+                $"F:{Register.F:X2} " +
+                $"B:{Register.B:X2} " +
+                $"C:{Register.C:X2} " +
+                $"D:{Register.D:X2} " +
+                $"E:{Register.E:X2} " +
+                $"H:{Register.H:X2} " +
+                $"L:{Register.L:X2} " +
+                $"SP:{Register.SP:X4} " +
+                $"PC:{Register.PC:X4} " +
+                $"PCMEM:{pcmem0:X2},{pcmem1:X2},{pcmem2:X2},{pcmem3:X2}");
+        }
+    }
 
     private byte GetR16(ref byte opCode) => (byte)((opCode & 0b00110000) >> 4);
     
-    private byte GetDestinationR8(ref byte opCode) => (byte)(opCode & 0b00111000 >> 3);
+    private byte GetDestinationR8(ref byte opCode) => (byte)((opCode & 0b00111000) >> 3);
 
     private byte GetSourceR8(ref byte opCode) => (byte)(opCode & 0b00000111);
 
-    private byte GetCondition(ref byte opCode) => (byte)(opCode & 0b00011000 >> 3);
+    private byte GetCondition(ref byte opCode) => (byte)((opCode & 0b00011000) >> 3);
 
     private bool CheckCondition(ref byte opCode)
     {
@@ -110,7 +151,7 @@ public partial class Cpu
 
     private void SetPopFlags(ref ushort poppedValue)
     {
-        var lowByte = (byte)(poppedValue & 0xFF00);
+        var lowByte = (byte)(poppedValue & 0x00FF);
         Register.ZeroFlag = (lowByte & 0b10000000) != 0;
         Register.NegativeFlag = (lowByte & 0b01000000) != 0;
         Register.HalfCarry = (lowByte & 0b00100000) != 0;
