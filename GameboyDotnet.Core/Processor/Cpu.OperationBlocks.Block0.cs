@@ -94,7 +94,7 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Incrementing 8 bit register, r8 value: {r8} ", opCode, r8);
         //6 = [HL], which requires a direct memory read and write
-        if (r8 == 6)
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
             var value = MemoryController.ReadByte(memoryAddress);
@@ -117,7 +117,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) DecrementR8(ref byte opCode, byte r8)
     {
         //6 = [HL], which requires a direct memory read and write
-        if (r8 == 6)
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
             Set8BitDecrementCarryFlags(MemoryController.ReadByte(memoryAddress));
@@ -138,7 +138,7 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Loading immediate 8 bit value into register, r8 value: {r8} ", opCode, r8);
         var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
-        if (r8 == 6)
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
             MemoryController.WriteByte(memoryAddress, immediate8Bit);
@@ -150,44 +150,52 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// rlca - 0x07 - Rotate left register
+    /// RLA - 0x17 - Rotate left register A, use old carry bit
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterA(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating left register A", opCode);
         var oldCarryFlag = Register.CarryFlag;
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0; //most significant bit
         Register.A = (byte)(Register.A << 1 | (oldCarryFlag ? 1 : 0));
         return (1, 4);
     }
 
     /// <summary>
-    ///  rrca - 0x0F - Rotate right register A
+    ///  RRA - 0x1F - Rotate right register A, use old carry bit
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateRightRegisterA(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating right register A", opCode);
         var oldCarryFlag = Register.CarryFlag;
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0; //least significant bit
         Register.A = (byte)((Register.A >> 1) | (oldCarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
     }
 
+    /// <summary>
+    /// RLCA - 0x0F - Rotate left register A through carry
+    /// </summary>
+    /// <param name="opCode"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterAThroughCarry(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating left register A through carry", opCode);
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0;
         Register.A = (byte)(Register.A << 1 | (Register.CarryFlag ? 1 : 0));
         return (1, 4);
     }
 
+    /// <summary>
+    /// RRCA - 0x0F - Rotate right register A through carry
+    /// </summary>
+    /// <param name="opCode"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateRightRegisterAThroughCarry(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating right register A through carry", opCode);
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0;
         Register.A = (byte)((Register.A >> 1) | (Register.CarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
@@ -214,7 +222,7 @@ public partial class Cpu
         result += adjust;
         Register.A = result;
 
-        Register.HalfCarry = (Register.A & 0x0F) > 9 || (Register.A & 0x0F) + (Register.CarryFlag ? 1 : 0) > 0x0F;
+        Register.HalfCarryFlag = (Register.A & 0x0F) > 9 || (Register.A & 0x0F) + (Register.CarryFlag ? 1 : 0) > 0x0F;
         Register.ZeroFlag = result == 0;
         Register.NegativeFlag = (result & 0x80) != 0;
         return (1, 4);
@@ -225,7 +233,7 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) ComplementAccumulator(ref byte opCode)
     {
-        (Register.NegativeFlag, Register.HalfCarry) = (true, true);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (true, true);
         Register.A = (byte)~Register.A;
         return (1, 4);
     }
@@ -236,7 +244,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) SetCarryFlag(ref byte opCode)
     {
         Register.CarryFlag = true;
-        (Register.NegativeFlag, Register.HalfCarry) = (false, false);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
         return (1, 4);
     }
 
@@ -246,7 +254,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ComplementCarryFlag(ref byte opCode)
     {
         Register.CarryFlag = !Register.CarryFlag;
-        (Register.NegativeFlag, Register.HalfCarry) = (false, false);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
         return (1, 4);
     }
 

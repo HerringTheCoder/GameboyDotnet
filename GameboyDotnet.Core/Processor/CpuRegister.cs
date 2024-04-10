@@ -80,7 +80,7 @@ public class CpuRegister
     /// <summary>
     /// Half Carry flag, aka 'h' flag, used for DAA instruction
     /// </summary>
-    public bool HalfCarry
+    public bool HalfCarryFlag
     {
         get => (F & 0b00100000) != 0;
         set => F = (byte)(value ? F | 0b00100000 : F & 0b11011111);
