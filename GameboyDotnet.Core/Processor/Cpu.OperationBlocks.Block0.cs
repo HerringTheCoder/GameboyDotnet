@@ -202,7 +202,8 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// daa - 0x27 - Decimal adjust accumulator
+    /// DAA - 0x27 - Decimal adjust accumulator
+    /// Credits to Eric Haskins': https://ehaskins.com/2018-01-30%20Z80%20DAA/
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecimalAdjustAccumulator(ref byte opCode)
     {
@@ -210,20 +211,21 @@ public partial class Cpu
         _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
 
         byte adjust = 0;
-        if (Register.CarryFlag || (Register.A & 0x0F) > 9)
+        
+        if (Register.HalfCarryFlag || (!Register.NegativeFlag && (Register.A & 0x0F) > 9))
             adjust |= 0x06;
 
-        if (Register.CarryFlag || Register.A > 0x99)
+        if (Register.CarryFlag || Register is { NegativeFlag: false, A: > 0x99 })
         {
             adjust |= 0x60;
             Register.CarryFlag = true;
         }
 
-        byte result = (byte)(Register.A + (Register.CarryFlag ? 1 : 0));
-        result += adjust;
+        byte result = Register.NegativeFlag ? Register.A.Subtract(adjust) : Register.A.Add(adjust);
+        result &= 0xFF;
         Register.A = result;
 
-        Register.HalfCarryFlag = (Register.A & 0x0F) > 9 || (Register.A & 0x0F) + (Register.CarryFlag ? 1 : 0) > 0x0F;
+        Register.HalfCarryFlag = false;
         Register.ZeroFlag = result == 0;
         return (1, 4);
     }
