@@ -206,6 +206,7 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecimalAdjustAccumulator(ref byte opCode)
     {
+        //TODO: Review DAA
         _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
 
         byte adjust = 0;
@@ -224,7 +225,6 @@ public partial class Cpu
 
         Register.HalfCarryFlag = (Register.A & 0x0F) > 9 || (Register.A & 0x0F) + (Register.CarryFlag ? 1 : 0) > 0x0F;
         Register.ZeroFlag = result == 0;
-        Register.NegativeFlag = (result & 0x80) != 0;
         return (1, 4);
     }
 

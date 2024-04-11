@@ -12,12 +12,4 @@
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="Tests\" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <ProjectReference Include="..\GameboyDotnet.Tests\GameboyDotnet.Tests.csproj" />
-    </ItemGroup>
-
 </Project>

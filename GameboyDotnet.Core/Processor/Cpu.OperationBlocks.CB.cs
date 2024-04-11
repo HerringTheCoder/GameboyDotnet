@@ -224,6 +224,7 @@ public partial class Cpu
 
         byte ShiftRightLogically(ref byte registerValue)
         {
+            (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
             Register.CarryFlag = (registerValue & 0b0000_0001) != 0;
             var result = (byte)(registerValue >> 1);
             Register.ZeroFlag = result == 0;

@@ -11,7 +11,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddR8ToA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - ADD A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
@@ -26,12 +26,13 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddR8ToAWithCarry(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - ADC A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
-        Set8BitAddCarryFlags(Register.A, value);
-        Register.A = Register.A.Add(value).Add((byte)(Register.CarryFlag ? 1 : 0));
+        var valueToAdd = MemoryController.ReadByte(Register.PC.Add(1)).Add((byte)(Register.CarryFlag ? 1 : 0));
+        Set8BitAddCarryFlags(Register.A, valueToAdd);
+        Register.A = Register.A.Add(valueToAdd);
         return (1, (byte)(r8 == 0b110 ? 8 : 4));
     }
 
@@ -41,7 +42,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) SubtractR8FromA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - SUB A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
@@ -59,9 +60,10 @@ public partial class Cpu
         var value = r8 == 0b110
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
-
+        
+        var valueToSubtract = value.Subtract((byte)(Register.CarryFlag ? 1 : 0));
         Set8BitSubtractCompareFlags(Register.A, value);
-        Register.A = Register.A.Subtract(value).Subtract((byte)(Register.CarryFlag ? 1 : 0));
+        Register.A = Register.A.Subtract(valueToSubtract);
         return (1, (byte)(r8 == 0b110 ? 8 : 4));
     }
 

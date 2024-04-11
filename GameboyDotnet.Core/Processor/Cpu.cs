@@ -22,10 +22,10 @@ public partial class Cpu
         MemoryController = new MemoryController(logger, isTestEnvironment);
     }
 
-    public void ExecuteNextOperation()
+    public void ExecuteNextOperation(StreamWriter? testWriter = null)
     {
         if(_isTestEnvironment)
-            LogTestOutput();
+            LogTestOutput(testWriter ?? throw new ArgumentNullException(nameof(testWriter), "Test writer needs to be defined in test mode"));
         
         var opCode = MemoryController.ReadByte(Register.PC);
         
@@ -44,22 +44,23 @@ public partial class Cpu
         Register.PC += operationSize.instructionBytesLength;
     }
     
-    private void LogTestOutput()
+    private void LogTestOutput(StreamWriter writer)
     {
         _testLogCounter++;
         if (_testLogCounter % 500 == 0)
         {
             Console.WriteLine($"Operation number: {_testLogCounter}");
         }
+
+        if (_testLogCounter > 1_500_000)
+        {
+            throw new Exception("Reached max test range");
+        }
         var pcmem0 = MemoryController.ReadByte(Register.PC);
         var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
         var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
         var pcmem3 = MemoryController.ReadByte(Register.PC.Add(3));
         
-        string filePath = @"F:\Emulators\Gameboy\TestOutput\test1.txt";
-
-        // Append the data to the file or create it if it doesn't exist
-        using var writer = File.AppendText(filePath);
         writer.WriteLine(
             $"A:{Register.A:X2} " +
             $"F:{Register.F:X2} " +

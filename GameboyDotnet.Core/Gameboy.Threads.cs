@@ -6,6 +6,10 @@ public partial class Gameboy
 {
     public async Task CpuThread(int cyclesPerSecond, int operationsPerCycle, CancellationToken ctsToken)
     {
+        string filePath = @"";
+        // Append the data to the file or create it if it doesn't exist
+        await using var testWriter = File.AppendText(filePath);
+
         try
         {
             var delayTime = TimeSpan.FromSeconds(1.0 / cyclesPerSecond);
@@ -16,9 +20,10 @@ public partial class Gameboy
                     await Task.Delay(delayTime, ctsToken);
                     continue;
                 }
-                Cpu.ExecuteNextOperation();
 
-                // await Task.Delay(delayTime, ctsToken);
+                Cpu.ExecuteNextOperation(testWriter);
+
+                await Task.Delay(TimeSpan.FromMicroseconds(50), ctsToken);
             }
         }
         catch (Exception ex)

@@ -18,14 +18,14 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// 0xCE - ADC A, r8 - Add R8 register to A with carry
+    /// 0xCE - ADC A, n8 - Add n8 to A with carry
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToAWithCarry(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - ADC A, r8", opCode);
-        var value = MemoryController.ReadByte(Register.PC.Add(1));
-        Set8BitAddCarryFlags(Register.A, value);
-        Register.A = Register.A.Add(value).Add((byte)(Register.CarryFlag ? 1 : 0));
+        _logger.LogDebug("{opcode:X2} - ADC A, n88", opCode);
+        var valueToAdd = MemoryController.ReadByte(Register.PC.Add(1)).Add((byte)(Register.CarryFlag ? 1 : 0));
+        Set8BitAddCarryFlags(Register.A, valueToAdd);
+        Register.A = Register.A.Add(valueToAdd);
         return (2, 8);
     }
 
@@ -50,8 +50,9 @@ public partial class Cpu
     {
         _logger.LogDebug("{opcode:X2} - SBC A, r8", opCode);
         var value = MemoryController.ReadByte(Register.PC.Add(1));
+        var valueToSubtract = value.Subtract((byte)(Register.CarryFlag ? 1 : 0));
         Set8BitSubtractCompareFlags(Register.A, value);
-        Register.A = Register.A.Subtract(value).Subtract((byte)(Register.CarryFlag ? 1 : 0));
+        Register.A = Register.A.Subtract(valueToSubtract);
         return (2, 8);
     }
 
@@ -110,11 +111,11 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ReturnConditional(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - RET cc", opCode);
-        if(CheckCondition(ref opCode));
+        if(CheckCondition(ref opCode))
         {
             Register.PC = MemoryController.ReadWord(Register.SP);
             Register.SP = Register.SP.Add(2);
-            return (1, 20);
+            return (0, 20);
         }
 
         return (1, 8); 
