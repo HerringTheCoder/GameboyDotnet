@@ -5,6 +5,7 @@ Checklist:
 -  ~~CPU Register implementation~~
 -  ~~245 standard CPU opcodes implemented~~
 -  Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)
+    - Passing: 01,04,05,06,09,10,11, Failing: 02,03,07,08
 -  Implementing all timers
 -  Keymap
 -  Implementing PPU and VBlank behavior
@@ -13,6 +14,6 @@ Checklist:
 -  RTC
 -  Extra Mappers (MBC3 and MBC5 at the very least)
 -  GB->GBC modes switching
--  Adding GBC features and $CB opcodes
+-  Adding GBC features
 -  Save/Load state
 -  Bugfixing, peripherals, improving accuracy
