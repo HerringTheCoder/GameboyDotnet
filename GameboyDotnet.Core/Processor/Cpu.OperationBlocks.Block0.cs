@@ -45,14 +45,14 @@ public partial class Cpu
         Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16));
         return (1, 8);
     }
-
+    
     /// <summary>
     /// ld [imm16],sp - 0x08
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadSPIntoImmediateMemory(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Loading SP into memory", opCode);
-        MemoryController.WriteWord((ushort)(Register.PC + 1), Register.SP);
+        MemoryController.WriteWord(Register.PC.Add(1), Register.SP);
         return (3, 20);
     }
 
@@ -116,7 +116,7 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecrementR8(ref byte opCode, byte r8)
     {
-        //6 = [HL], which requires a direct memory read and write
+        _logger.LogDebug("{opCode:X2} - Decrementing 8 bit register, r8 value: {r8} ", opCode, r8);
         if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
@@ -207,7 +207,6 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecimalAdjustAccumulator(ref byte opCode)
     {
-        //TODO: Review DAA
         _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
 
         byte adjust = 0;

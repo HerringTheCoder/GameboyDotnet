@@ -7,6 +7,7 @@ public partial class Gameboy
     public async Task CpuThread(int cyclesPerSecond, int operationsPerCycle, CancellationToken ctsToken)
     {
         string filePath = @"F:\Emulators\Gameboy\TestOutput\testOutput.txt";
+        File.Delete(filePath);
         // Append the data to the file or create it if it doesn't exist
         await using var testWriter = File.AppendText(filePath);
 

@@ -51,11 +51,7 @@ public partial class Cpu
         {
             Console.WriteLine($"Operation number: {_testLogCounter}");
         }
-
-        if (_testLogCounter > 1_500_000)
-        {
-            throw new Exception("Reached max test range");
-        }
+        
         var pcmem0 = MemoryController.ReadByte(Register.PC);
         var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
         var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
@@ -86,73 +82,5 @@ public partial class Cpu
             0b11 => Register.CarryFlag,
             _ => throw new ArgumentOutOfRangeException()
         };
-    }
-    
-    private void Set16BitAddCarryFlags(ushort a, ushort b)
-    {
-        Register.NegativeFlag = false;
-        Register.HalfCarryFlag = (a & 0xFFF) + (b & 0xFFF) > 0xFFF; //Check overflow from 11 bit to 12 bit
-        Register.CarryFlag = a + b > 0xFFFF;
-    }
-
-    private void Set8BitAddCarryFlags(byte a, byte b)
-    {
-        Register.NegativeFlag = false;
-        Register.ZeroFlag = (byte)(a + b) == 0;
-        Register.HalfCarryFlag = (a & 0xF) + (b & 0xF) > 0xF; //Check overflow from 3 bit to 4 bit
-        Register.CarryFlag = a + b > 0xFF;
-    }
-
-    private void Set8BitIncrementCarryFlags(byte a)
-    {
-        Register.NegativeFlag = false;
-        Register.ZeroFlag = (byte)(a + 1) == 0;
-        Register.HalfCarryFlag = (a & 0xF) + 1 > 0xF; //Check overflow from 3 bit to 4 bit
-    }
-
-    private void Set8BitDecrementCarryFlags(byte value)
-    {
-        Register.NegativeFlag = true;
-        Register.ZeroFlag = (byte)(value - 1) == 0;
-        //Check underflow from bit 4 by isolating the 4th bit and checking if it's 0 (will underflow) or 1 (won't underflow)
-        Register.HalfCarryFlag = (value & 0xF) == 0;
-    }
-
-    private void Set8BitSubtractCompareFlags(byte a, byte b)
-    {
-        Register.NegativeFlag = true;
-        Register.ZeroFlag = (byte)(a - b) == 0;
-        Register.HalfCarryFlag = (a & 0xF) < (b & 0xF); //Check underflow from 4 bit to 3 bit
-        Register.CarryFlag = a < b;
-    }
-    
-    private void Set8BitAndFlags()
-    {
-        Register.ZeroFlag = Register.A == 0;
-        Register.HalfCarryFlag = true;
-        (Register.NegativeFlag, Register.CarryFlag) = (false, false);
-    }
-    
-    private void Set8BitOrXorFlags()
-    {
-        Register.ZeroFlag = Register.A == 0;
-        (Register.NegativeFlag, Register.HalfCarryFlag, Register.CarryFlag) = (false, false, false);
-    }
-
-    private void SetPopFlags(ref ushort poppedValue)
-    {
-        var lowByte = (byte)(poppedValue & 0x00FF);
-        Register.ZeroFlag = (lowByte & 0b10000000) != 0;
-        Register.NegativeFlag = (lowByte & 0b01000000) != 0;
-        Register.HalfCarryFlag = (lowByte & 0b00100000) != 0;
-        Register.CarryFlag = (lowByte & 0b00010000) != 0;
-    }
-    
-    private void SetSPSignedByteAddFlags(ushort sp, sbyte signedByte)
-    {
-        Register.ZeroFlag = false;
-        Register.NegativeFlag = false;
-        Register.HalfCarryFlag = (sp & 0xF) + (signedByte & 0xF) > 0xF;
-        Register.CarryFlag = (sp & 0xFF) + signedByte > 0xFF;
     }
 }

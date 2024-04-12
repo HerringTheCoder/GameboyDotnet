@@ -24,11 +24,6 @@ public class FixedBank : IMemory
 
     public virtual void WriteByte(ref ushort address, ref byte value)
     {
-        if (address is 0xFF01 or 0xFF02)
-        {
-            Console.WriteLine($"SB WRITE: {value:X2}");
-        }
-        
         MemorySpace[address - StartAddress] = value;
     }
 
@@ -39,11 +34,6 @@ public class FixedBank : IMemory
 
     public virtual void WriteWord(ref ushort address, ref ushort value)
     {
-        if (address is 0xFF01 or 0xFF02)
-        {
-            Console.WriteLine($"SB WRITE: {value:X2}");
-        }
-        
         MemorySpace[address - StartAddress] = (byte)(value & 0xFF);
         MemorySpace[address - StartAddress + 1] = (byte)(value >> 8);
     }

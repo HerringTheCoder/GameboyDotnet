@@ -139,6 +139,7 @@ public partial class Cpu
 
         byte ShiftLeft(ref byte registerValue)
         {
+            (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
             Register.CarryFlag = (registerValue & 0b1000_0000) != 0;
             var value = (byte)(registerValue << 1);
             Register.ZeroFlag = value == 0;
@@ -165,10 +166,11 @@ public partial class Cpu
     {
         _logger.LogDebug("CB{OpCode:X2} - SLA r8", opCode);
 
-        byte ShiftLeft(ref byte registerValue)
+        byte ShiftRight(ref byte registerValue)
         {
+            (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
             Register.CarryFlag = (registerValue & 0b0000_0001) != 0;
-            var value = (byte)(registerValue >> 1);
+            var value = (byte)((registerValue & 0b1000_0000) | (registerValue >> 1));
             Register.ZeroFlag = value == 0;
             return value;
         }
@@ -176,12 +178,12 @@ public partial class Cpu
         if (r8 == Constants.R8_HL_Index)
         {
             var memValue = MemoryController.ReadByte(Register.HL);
-            MemoryController.WriteByte(Register.HL, ShiftLeft(ref memValue));
+            MemoryController.WriteByte(Register.HL, ShiftRight(ref memValue));
             return (2, 16);
         }
 
         var value = Register.GetRegisterValueByR8(r8);
-        Register.SetRegisterByR8(r8, ShiftLeft(ref value));
+        Register.SetRegisterByR8(r8, ShiftRight(ref value));
         return (2, 8);
     }
 
@@ -249,7 +251,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) TestBit3IndexInR8(ref byte subOpCode, ref byte bit3Index, ref byte r8)
     {
         _logger.LogDebug("CB{SubOpCode:X2} - BIT u3 r8", subOpCode);
-        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, true);
         var mask = 0b0000_0001 << bit3Index; //Set tested bit
         if (r8 == Constants.R8_HL_Index)
         {
@@ -293,6 +295,7 @@ public partial class Cpu
         {
             var memValue = MemoryController.ReadByte(Register.HL);
             MemoryController.WriteByte(Register.HL, (byte)(memValue | mask));
+            return (2, 16);
         }
 
         var value = Register.GetRegisterValueByR8(r8);

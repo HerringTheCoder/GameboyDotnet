@@ -1,4 +1,4 @@
-﻿using GameboyDotnet.Components.Memory.BuildingBlocks;
+﻿using System.Text;
 using GameboyDotnet.Memory.BuildingBlocks;
 using Microsoft.Extensions.Logging;
 
@@ -19,6 +19,7 @@ public class MemoryController
     public readonly FixedBank HRam = new(0xFF80, 0xFFFE, nameof(HRam));
     public readonly FixedBank InterruptEnableRegister = new(0xFFFF, 0xFFFF, nameof(InterruptEnableRegister));
 
+    private StringBuilder _sb = new();
     private readonly ILogger<Gameboy> _logger;
     
     public MemoryController(ILogger<Gameboy> logger, bool isTestEnvironment)
@@ -58,13 +59,32 @@ public class MemoryController
     
     public void WriteByte(ushort address, byte value)
     {
-        var memoryBank = FindMemoryBank(ref address); 
+        if (address is 0xFF01)
+        {
+            Console.WriteLine($"SB WRITE: {value:X2}");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("-----------------");
+            Console.WriteLine(_sb);
+            _sb.Append((char)value);
+            Console.WriteLine("-----------------");
+            Console.ResetColor();
+            if (_sb.ToString().Contains("Passed\n"))
+            {
+                throw new Exception("Test Passed");
+            }
+        }
+        
+        var memoryBank = FindMemoryBank(ref address);
         _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
         memoryBank.WriteByte(ref address, ref value);
     }
     
     public void WriteWord(ushort address, ushort value)
     {
+        if (address is 0xDD02 or 0xDD01 or 0xDD03)
+        {
+            throw new Exception();
+        }
         var memoryBank = FindMemoryBank(ref address);
         _logger.LogDebug("Writing word {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
         memoryBank.WriteWord(ref address, ref value);

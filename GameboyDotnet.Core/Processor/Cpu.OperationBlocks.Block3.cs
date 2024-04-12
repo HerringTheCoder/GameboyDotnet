@@ -23,9 +23,11 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToAWithCarry(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - ADC A, n88", opCode);
-        var valueToAdd = MemoryController.ReadByte(Register.PC.Add(1)).Add((byte)(Register.CarryFlag ? 1 : 0));
-        Set8BitAddCarryFlags(Register.A, valueToAdd);
-        Register.A = Register.A.Add(valueToAdd);
+        var valueToAdd = MemoryController.ReadByte(Register.PC.Add(1));
+        var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
+
+        Set8BitAddCarryFlags(Register.A, valueToAdd, carryFlag);
+        Register.A = Register.A.Add(valueToAdd).Add(carryFlag);
         return (2, 8);
     }
 
@@ -44,15 +46,16 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// 0xDE - SBC A, r8 - Subtract R8 register from A with carry
+    /// 0xDE - SBC A, n8 - Subtract immediate 8 bit from A with carry
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) SubtractImmediate8BitFromAWithCarry(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - SBC A, r8", opCode);
         var value = MemoryController.ReadByte(Register.PC.Add(1));
-        var valueToSubtract = value.Subtract((byte)(Register.CarryFlag ? 1 : 0));
-        Set8BitSubtractCompareFlags(Register.A, value);
-        Register.A = Register.A.Subtract(valueToSubtract);
+        var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
+        
+        Set8BitSubtractCompareFlags(Register.A, value, carryFlag);
+        Register.A = Register.A.Subtract(value).Subtract(carryFlag);
         return (2, 8);
     }
 
@@ -130,7 +133,7 @@ public partial class Cpu
         _logger.LogDebug("{opcode:X2} - RET", opCode);
         Register.PC = MemoryController.ReadWord(Register.SP);
         Register.SP = Register.SP.Add(2);
-        return (0, 16); //Actual length: 1, but the correct value of PC is already set
+        return (0, 16);
     }
 
     
@@ -175,6 +178,11 @@ public partial class Cpu
         return (0, 16); //Actual length: 3, but the correct value of PC is already set
     }
 
+    /// <summary>
+    /// 0xE9 - JP HL - Jump to address in HL
+    /// </summary>
+    /// <param name="opCode"></param>
+    /// <returns></returns>
     private (byte instructionBytesLength, byte durationTStates) JumpHL(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - JP HL", opCode);
@@ -221,12 +229,13 @@ public partial class Cpu
     }
 
     /// <summary>
-    ///  0xC1 or 0xD1 or 0xE1 or 0xF1  - POP AF - Pop 16-bit value from stack into AF
+    ///  0xC1 or 0xD1 or 0xE1 or 0xF1  - POP r16 - Pop 16-bit value from stack into r16
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) PopR16(ref byte opCode, byte r16stk)
     {
         _logger.LogDebug("{opcode:X2} - POP {getR16:X}", opCode, r16stk);
         var poppedValue = MemoryController.ReadWord(Register.SP);
+        Register.SP = Register.SP.Add(2);
         
         switch (r16stk)
         {
@@ -246,7 +255,6 @@ public partial class Cpu
             default:
                 throw new ArgumentOutOfRangeException(nameof(r16stk), r16stk, "Invalid r16stk value");
         }
-        Register.SP = Register.SP.Add(2);
 
         return (1, 12);
     }
@@ -271,7 +279,7 @@ public partial class Cpu
                 break;
             case 3:
                 MemoryController.WriteByte(Register.SP.Add(1), Register.A);
-                MemoryController.WriteByte(Register.SP, (byte)(Register.F & 0xF0)); //Push only the upper 4 bits of F
+                MemoryController.WriteByte(Register.SP, (byte)(Register.F & 0xF0));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(r16stk), r16stk, "Invalid r16stk value");
@@ -333,11 +341,11 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// 0xFA - LDH A, (nn) - Load (FF00 + immediate 16-bit) address value into A
+    /// 0xFA - LD A, n16 - Load immediate 16-bit address value into A
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadImmediate16BitAddressValueIntoA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - LDH A, (nn)", opCode);
+        _logger.LogDebug("{opcode:X2} - LD A, (n16)", opCode);
         var address = MemoryController.ReadWord(Register.PC.Add(1));
         Register.A = MemoryController.ReadByte(address);
         return (3, 16);
@@ -356,7 +364,7 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// 0xF8 - LD HL, SP + n - Load SP + immediate 8-bit into HL
+    /// 0xF8 - LD HL, SP + n - Load SP + immediate signed 8-bit into HL
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadSPPlusImmediate8BitIntoHL(ref byte opCode)
     {
