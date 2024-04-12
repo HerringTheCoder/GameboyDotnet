@@ -58,7 +58,11 @@ public partial class Cpu
 
     private void SetPopFlags(ref ushort poppedValue)
     {
-        Register.F = (byte)(poppedValue & 0x00FF);
+        var lowByte = (byte)(poppedValue & 0x00FF);
+        Register.ZeroFlag = (lowByte & 0b10000000) != 0;
+        Register.NegativeFlag = (lowByte & 0b01000000) != 0;
+        Register.HalfCarryFlag = (lowByte & 0b00100000) != 0;
+        Register.CarryFlag = (lowByte & 0b00010000) != 0;
     }
     
     private void SetSPSignedByteAddFlags(ushort sp, sbyte signedByte)

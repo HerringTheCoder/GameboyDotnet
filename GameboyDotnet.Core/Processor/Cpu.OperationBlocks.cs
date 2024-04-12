@@ -92,7 +92,7 @@ public partial class Cpu
             0xE9 => JumpHL(ref opCode),
             0xC4 or 0xCC or 0xD4 or 0xDC => CallConditionalImmediate16Bit(ref opCode),
             0xCD => CallImmediate16Bit(ref opCode),
-            0xCF => Restart(ref opCode, n3: opCode.GetDestinationR8()), //n3 covers the same bits as destination r8
+            0xC7 or 0xD7 or 0xE7 or 0xF7 or 0xCF or 0xDF or 0xEF or 0xFF => Restart(ref opCode, n3: opCode.GetDestinationR8()), //n3 covers the same bits as destination r8
             0xCB => ExecuteBlockCB(ref opCode),
             0xC1 or 0xD1 or 0xE1 or 0xF1 => PopR16(ref opCode, opCode.GetR16()),
             0xC5 or 0xD5 or 0xE5 or 0xF5 => PushR16(ref opCode, opCode.GetR16()),

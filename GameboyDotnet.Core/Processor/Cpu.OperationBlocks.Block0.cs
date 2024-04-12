@@ -266,9 +266,8 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit", opCode);
         var immediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
-        Register.PC = (ushort)(Register.PC + immediate8Bit); 
-        //TODO: Double check if Register.PC should be incremented by 2 or compensated
-        return (2, 12);
+        Register.PC = (ushort)(Register.PC + 2 + immediate8Bit);
+        return (0, 12);
     }
 
 

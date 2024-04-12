@@ -53,7 +53,7 @@ public partial class Cpu
         _logger.LogDebug("{opcode:X2} - SBC A, r8", opCode);
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
-        
+
         Set8BitSubtractCompareFlags(Register.A, value, carryFlag);
         Register.A = Register.A.Subtract(value).Subtract(carryFlag);
         return (2, 8);
@@ -114,14 +114,13 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ReturnConditional(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - RET cc", opCode);
-        if(CheckCondition(ref opCode))
+        if (CheckCondition(ref opCode))
         {
-            Register.PC = MemoryController.ReadWord(Register.SP);
-            Register.SP = Register.SP.Add(2);
+            Register.PC = PopStack();
             return (0, 20);
         }
 
-        return (1, 8); 
+        return (1, 8);
     }
 
     /// <summary>
@@ -131,12 +130,11 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) Return(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - RET", opCode);
-        Register.PC = MemoryController.ReadWord(Register.SP);
-        Register.SP = Register.SP.Add(2);
+        Register.PC = PopStack();
         return (0, 16);
     }
 
-    
+
     /// <summary>
     /// 0xD9 - RETI - Return from interrupt
     /// </summary>
@@ -145,8 +143,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ReturnFromInterrupt(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - RETI", opCode);
-        Register.PC = MemoryController.ReadWord(Register.SP);
-        Register.SP = Register.SP.Add(2);
+        Register.PC = PopStack();
         Register.InterruptsEnabled = true;
         return (1, 16);
     }
@@ -157,9 +154,9 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) JumpConditionalImmediate16Bit(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - JP cc, nn", opCode);
-        if(CheckCondition(ref opCode))
+        if (CheckCondition(ref opCode))
         {
-            Register.PC = MemoryController.ReadWord(Register.PC);
+            Register.PC = MemoryController.ReadWord(Register.PC.Add(1));
             return (0, 16); //Actual length: 3, but the correct value of PC is already set
         }
 
@@ -196,10 +193,9 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) CallConditionalImmediate16Bit(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - CALL cc, nn", opCode);
-        if(CheckCondition(ref opCode))
+        if (CheckCondition(ref opCode))
         {
-            Register.SP = Register.SP.Subtract(2);
-            MemoryController.WriteWord(Register.SP, Register.PC.Add(3)); //Store the address of the next instruction
+            PushStack(Register.PC.Add(3)); //Store the address of the next instruction
             Register.PC = MemoryController.ReadWord(Register.PC.Add(1)); //Jump to the address of imm16
             return (0, 24); //PC already set
         }
@@ -213,8 +209,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) CallImmediate16Bit(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - CALL nn", opCode);
-        Register.SP = Register.SP.Subtract(2);
-        MemoryController.WriteWord(Register.SP, Register.PC.Add(3)); //Store the address of the next instruction
+        PushStack(Register.PC.Add(3)); //Push next address after this instruction
         Register.PC = MemoryController.ReadWord(Register.PC.Add(1)); //Jump to the address of imm16
         return (0, 24); //PC already set
     }
@@ -222,8 +217,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) Restart(ref byte opCode, byte n3)
     {
         _logger.LogDebug("{opcode:X2} - RST {n3:X}", opCode, n3);
-        Register.SP = Register.SP.Subtract(2);
-        MemoryController.WriteWord(Register.SP, Register.PC.Add(1)); //Store the address of the next instruction
+        PushStack(Register.PC.Add(1)); //Push next address after this instruction
         Register.PC = (ushort)(n3 << 3); //<< 3 to multiply by 8
         return (0, 16); //PC already set, thus 0
     }
@@ -234,9 +228,8 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) PopR16(ref byte opCode, byte r16stk)
     {
         _logger.LogDebug("{opcode:X2} - POP {getR16:X}", opCode, r16stk);
-        var poppedValue = MemoryController.ReadWord(Register.SP);
-        Register.SP = Register.SP.Add(2);
-        
+        var poppedValue = PopStack();
+
         switch (r16stk)
         {
             case 0:
@@ -265,25 +258,27 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) PushR16(ref byte opCode, byte r16stk)
     {
         _logger.LogDebug("{opcode:X2} - PUSH {getR16:X}", opCode, r16stk);
-        Register.SP = Register.SP.Subtract(2);
-        switch(r16stk) 
+
+        switch (r16stk)
         {
             case 0:
-                MemoryController.WriteWord(Register.SP, Register.BC);
+                PushStack(Register.BC);
                 break;
             case 1:
-                MemoryController.WriteWord(Register.SP, Register.DE);
+                PushStack(Register.DE);
                 break;
             case 2:
-                MemoryController.WriteWord(Register.SP, Register.HL);
+                PushStack(Register.HL);
                 break;
             case 3:
-                MemoryController.WriteByte(Register.SP.Add(1), Register.A);
-                MemoryController.WriteByte(Register.SP, (byte)(Register.F & 0xF0));
+                PushStack(Register.AF);
+                // MemoryController.WriteByte(Register.SP.Add(1), Register.A);
+                // MemoryController.WriteByte(Register.SP, (byte)(Register.F & 0xF0));
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(r16stk), r16stk, "Invalid r16stk value");
         }
+
         return (1, 16);
     }
 
