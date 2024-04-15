@@ -4,15 +4,16 @@ Checklist:
 -  ~~Memory mapping with switchable banks~~
 -  ~~CPU Register implementation~~
 -  ~~245 standard CPU opcodes implemented~~
--  Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)
-    - Passing: 01,04,05,06,09,10,11, Failing: 02,03,07,08
--  Implementing all timers
+-  ~~Passing CPU json unit tests~~ All CPU tests are passing now!
+-  ~~Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)~~
+    - All tests are passing except for cpu_instr (MBC1 required) and 02-interrupts (timers and interrupts need some more work)
+-  Implementing all timers and interrupt handling
 -  Keymap
 -  Implementing PPU and VBlank behavior
--  Running first 'mapperless' titles
+-  Running first MBC0 titles
 -  Emulating sound
 -  RTC
--  Extra Mappers (MBC3 and MBC5 at the very least)
+-  Extra Mappers (MBC1, MBC3 and MBC5 at the very least)
 -  GB->GBC modes switching
 -  Adding GBC features
 -  Save/Load state
