@@ -5,11 +5,10 @@ Checklist:
 -  ~~CPU Register implementation~~
 -  ~~245 standard CPU opcodes implemented~~
 -  ~~Passing CPU json unit tests~~ All CPU tests are passing now!
--  ~~Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)~~
-    - All tests are passing except for cpu_instr (MBC1 required) and 02-interrupts (timers and interrupts need some more work)
--  Implementing all timers and interrupt handling
+-  ~~Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)~~ All Blaarg tests are passing now!
+-  ~~Implementing timers and interrupt handling~~
+-  Implementing PPU
 -  Keymap
--  Implementing PPU and VBlank behavior
 -  Running first MBC0 titles
 -  Emulating sound
 -  RTC
