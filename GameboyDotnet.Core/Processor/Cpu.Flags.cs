@@ -2,11 +2,19 @@
 
 public partial class Cpu
 {
-     private void Set16BitAddCarryFlags(ushort a, ushort b)
+    private void Set16BitAddCarryFlags(ushort a, ushort b)
     {
         Register.NegativeFlag = false;
         Register.HalfCarryFlag = (a & 0xFFF) + (b & 0xFFF) > 0xFFF; //Check overflow from 11 bit to 12 bit
         Register.CarryFlag = a + b > 0xFFFF;
+    }
+
+    private void SetSPSignedByteAddFlags(ushort sp, byte signedByte)
+    {
+        Register.ZeroFlag = false;
+        Register.NegativeFlag = false;
+        Register.HalfCarryFlag = (sp & 0xF) + (signedByte & 0xF) > 0xF;
+        Register.CarryFlag = (sp & 0xFF) + signedByte > 0xFF;
     }
 
     private void Set8BitAddCarryFlags(byte a, byte b, byte? addCarryFlag = null)
@@ -42,14 +50,14 @@ public partial class Cpu
         Register.HalfCarryFlag = (a & 0xF) < (b & 0xF) + sbCarryFlag;
         Register.CarryFlag = a < b + sbCarryFlag;
     }
-    
+
     private void Set8BitAndFlags()
     {
         Register.ZeroFlag = Register.A == 0;
         Register.HalfCarryFlag = true;
         (Register.NegativeFlag, Register.CarryFlag) = (false, false);
     }
-    
+
     private void Set8BitOrXorFlags()
     {
         Register.ZeroFlag = Register.A == 0;
@@ -63,13 +71,5 @@ public partial class Cpu
         Register.NegativeFlag = (lowByte & 0b01000000) != 0;
         Register.HalfCarryFlag = (lowByte & 0b00100000) != 0;
         Register.CarryFlag = (lowByte & 0b00010000) != 0;
-    }
-    
-    private void SetSPSignedByteAddFlags(ushort sp, sbyte signedByte)
-    {
-        Register.ZeroFlag = false;
-        Register.NegativeFlag = false;
-        Register.HalfCarryFlag = (sp & 0xF) + (signedByte & 0xF) > 0xF;
-        Register.CarryFlag = (sp & 0xFF) + signedByte > 0xFF;
     }
 }

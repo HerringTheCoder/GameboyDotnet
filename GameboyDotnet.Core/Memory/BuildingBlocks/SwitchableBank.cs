@@ -26,17 +26,6 @@ public class SwitchableBank : FixedBank, ISwitchableMemory
         MemorySpace[CurrentBank * BankSizeInBytes + address - StartAddress] = value;
     }
     
-    public override ushort ReadWord(ref ushort address)
-    {
-        return (ushort)(MemorySpace[CurrentBank * BankSizeInBytes + address - StartAddress] | (MemorySpace[CurrentBank * BankSizeInBytes + address - StartAddress + 1] << 8));
-    }
-    
-    public override void WriteWord(ref ushort address, ref ushort value)
-    {
-        MemorySpace[CurrentBank * BankSizeInBytes + address - StartAddress] = (byte)(value & 0xFF);
-        MemorySpace[CurrentBank * BankSizeInBytes + address - StartAddress + 1] = (byte)(value >> 8);
-    }
-    
     public override void IncrementByte(ref ushort memoryAddress)
     {
         MemorySpace[CurrentBank * BankSizeInBytes + memoryAddress - StartAddress]++;

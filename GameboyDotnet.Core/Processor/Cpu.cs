@@ -10,10 +10,10 @@ public partial class Cpu
     internal CpuRegister Register { get; set; } = new();
     internal MemoryController MemoryController { get; }
     public bool IsHalted { get; set; }
+    private int _tStatesCounter = 0;
     private readonly ILogger<Gameboy> _logger;
-    
+
     private readonly bool _isTestEnvironment;
-    private int _testLogCounter = 0;
 
     public Cpu(ILogger<Gameboy> logger, bool isTestEnvironment)
     {
@@ -22,14 +22,23 @@ public partial class Cpu
         MemoryController = new MemoryController(logger, isTestEnvironment);
     }
 
-    public void ExecuteNextOperation(StreamWriter? testWriter = null)
+    public byte ExecuteNextOperation()
     {
-        if(_isTestEnvironment)
-            LogTestOutput(testWriter ?? throw new ArgumentNullException(nameof(testWriter), "Test writer needs to be defined in test mode"));
+        var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
+        var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
+        var interrupt = interruptFlags & interruptEnable;
+        if (interrupt != 0)
+        {
+            _logger.LogDebug("Interrupt detected: {interrupt:X2}", interrupt);
+            HandleInterrupt(interrupt);
+        }
+        
+        if(IsHalted)
+        {
+            return 1;
+        }
         
         var opCode = MemoryController.ReadByte(Register.PC);
-        
-        //Idea of operation blocks is based on: https://gbdev.io/pandocs/CPU_Instruction_Set.html
         var operationBlock = (opCode & 0b11000000) >> 6;
 
         var operationSize = operationBlock switch
@@ -41,22 +50,46 @@ public partial class Cpu
             _ => throw new NotImplementedException($"Operation {opCode:X2} not implemented")
         };
 
+        if (opCode != 0xFB && Register.IMEPending)
+        {
+            Register.IMEPending = false;
+            Register.InterruptsMasterEnabled = true;
+        }
+
         Register.PC += operationSize.instructionBytesLength;
+        
+        return operationSize.durationTStates;
     }
+
+    private void HandleInterrupt(int interrupt)
+    {
+        IsHalted = false;
+        if (Register.InterruptsMasterEnabled)
+        {
+            Register.InterruptsMasterEnabled = false;
+            MemoryController.WriteByte(Constants.IFRegister, 0);
+            PushStack(Register.PC);
+            Register.PC = interrupt switch
+            {
+                0x01 => 0x0040,
+                0x02 => 0x0048,
+                0x04 => 0x0050,
+                0x08 => 0x0058,
+                0x10 => 0x0060,
+                _ => throw new ArgumentOutOfRangeException(nameof(interrupt), interrupt, "Invalid interrupt")
+            };
+        }
+    }
+
     
+
     private void LogTestOutput(StreamWriter writer)
     {
-        _testLogCounter++;
-        if (_testLogCounter % 500 == 0)
-        {
-            Console.WriteLine($"Operation number: {_testLogCounter}");
-        }
-        
         var pcmem0 = MemoryController.ReadByte(Register.PC);
         var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
         var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
         var pcmem3 = MemoryController.ReadByte(Register.PC.Add(3));
-        
+
         writer.WriteLine(
             $"A:{Register.A:X2} " +
             $"F:{Register.F:X2} " +

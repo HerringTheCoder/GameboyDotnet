@@ -144,8 +144,8 @@ public partial class Cpu
     {
         _logger.LogDebug("{opcode:X2} - RETI", opCode);
         Register.PC = PopStack();
-        Register.InterruptsEnabled = true;
-        return (1, 16);
+        Register.InterruptsMasterEnabled = true;
+        return (0, 16);
     }
 
     /// <summary>
@@ -352,9 +352,9 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToSP(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - ADD SP, n", opCode);
-        var signedImmediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
-        SetSPSignedByteAddFlags((byte)(Register.SP & 0x00FF), signedImmediate8Bit);
-        Register.SP = (ushort)(Register.SP + signedImmediate8Bit);
+        var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
+        SetSPSignedByteAddFlags(Register.SP, immediate8Bit);
+        Register.SP = (ushort)(Register.SP + (sbyte)immediate8Bit);
         return (2, 16);
     }
 
@@ -364,9 +364,9 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) LoadSPPlusImmediate8BitIntoHL(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - LD HL, SP + n", opCode);
-        var signedImmediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
-        SetSPSignedByteAddFlags((byte)(Register.SP & 0x00FF), signedImmediate8Bit);
-        Register.HL = (ushort)(Register.SP + signedImmediate8Bit);
+        var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
+        SetSPSignedByteAddFlags(Register.SP, immediate8Bit);
+        Register.HL = (ushort)(Register.SP + (sbyte)immediate8Bit);
         return (2, 12);
     }
 
@@ -389,7 +389,8 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) DisableInterrupts(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - DI", opCode);
-        Register.InterruptsEnabled = false;
+        Register.IMEPending = false;
+        Register.InterruptsMasterEnabled = false;
         return (1, 4);
     }
 
@@ -399,7 +400,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) EnableInterrupts(ref byte opCode)
     {
         _logger.LogDebug("{opcode:X2} - EI", opCode);
-        Register.InterruptsEnabled = true;
+        Register.IMEPending = true;
         return (1, 4);
     }
 }

@@ -1,9 +1,6 @@
-﻿using System.Collections.Immutable;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Logging.Console;
+﻿using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.SDL;
+namespace GameboyDotnet.Common;
 
 public static class LoggerHelper
 {

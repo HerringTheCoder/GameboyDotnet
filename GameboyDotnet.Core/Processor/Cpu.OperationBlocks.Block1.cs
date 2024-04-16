@@ -11,8 +11,14 @@ public partial class Cpu
     {
         _logger.LogDebug("HALT - Halt CPU until an interrupt occurs");
         //TODO: Review if this is sufficient way to handle HALT
-        if(Register.InterruptsEnabled)
-            IsHalted = true;
+        if (!Register.InterruptsMasterEnabled)
+        {
+            
+            if((MemoryController.ReadByte(Constants.IERegister) &
+                MemoryController.ReadByte(Constants.IFRegister) &
+                0x1F) == 0)
+                IsHalted = true;
+        }
         
         //TODO: Implement HALT bug
         return (1, 4);

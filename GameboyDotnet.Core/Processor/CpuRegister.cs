@@ -12,7 +12,8 @@ public class CpuRegister
     /// <summary>
     /// IME - Interrupt Master Enable flag
     /// </summary>
-    public bool InterruptsEnabled { get; set; }
+    public bool InterruptsMasterEnabled { get; set; }
+    public bool IMEPending { get; set; }
 
     private ushort _af { get; set; } = 0x01B0;
 
@@ -38,7 +39,7 @@ public class CpuRegister
     public ushort AF
     {
         get => _af;
-        set => _af = value;
+        set => _af = (ushort)((value & 0xFFF0) | (_af & 0x00FF)); //TODO: Double check
     }
 
     /// <summary>
@@ -56,7 +57,7 @@ public class CpuRegister
     public byte F
     {
         get => (byte)(_af & 0x00FF);
-        set => _af = (ushort)((_af & 0xFF00) | value);
+        set => _af = (ushort)((_af & 0xFF00) | (value & 0xF0));
     }
 
     /// <summary>

@@ -1,7 +1,6 @@
 ﻿using Chip8Emu.SDL;
 using GameboyDotnet;
-using GameboyDotnet.Components;
-using GameboyDotnet.Components.Cpu;
+using GameboyDotnet.Common;
 using GameboyDotnet.SDL;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
@@ -32,9 +31,9 @@ gameboy.ExceptionOccured += (_, _) =>
     cts.Cancel();
     running = false;
 };
-gameboy.DisplayUpdated += (_, _) => { Renderer.RenderStates(renderer, gameboy.Lcd, window); };
+gameboy.DisplayUpdated += (_, _) => { Renderer.RenderStates(renderer, gameboy.Ppu.Lcd, window); };
 
-Task.Run(() => gameboy.RunAsync(emulatorSettings.CyclesPerSecond, emulatorSettings.OperationsPerCycle, emulatorSettings.GpuTickRate, cts.Token));
+Task.Run(() => gameboy.RunAsync(cts.Token));
 
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)

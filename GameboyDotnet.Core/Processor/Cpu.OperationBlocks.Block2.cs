@@ -89,13 +89,13 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) XorR8WithA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - XOR A, {r8R8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Register.A = (byte)(Register.A ^ value);
         Set8BitOrXorFlags();
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>

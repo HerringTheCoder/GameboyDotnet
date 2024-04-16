@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory.BuildingBlocks;
 using Microsoft.Extensions.Logging;
 
@@ -12,9 +13,9 @@ public class MemoryController
     public SwitchableBank ExternalRam = new(0xA000, 0xBFFF, nameof(ExternalRam), bankSizeInBytes:8*1024, numberOfBanks:512);
     public readonly FixedBank Wram0 = new(0xC000, 0xCFFF, nameof(Wram0));
     public readonly SwitchableBank Wram1 = new(0xD000, 0xDFFF, nameof(Wram1), bankSizeInBytes: 4*1024, numberOfBanks: 8);
-    public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam)); //TODO: Implement the two-sided synchronization
+    // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
     public readonly FixedBank Oam = new(0xFE00, 0xFE9F, nameof(Oam));
-    public readonly FixedBank NotUsable = new(0xFEA0, 0xFEFF, nameof(NotUsable)); //TODO: Implement the prohibition
+    public readonly FixedBank NotUsable = new(0xFEA0, 0xFEFF, nameof(NotUsable));
     public readonly FixedBank IoRegisters = new(0xFF00, 0xFF7F, nameof(IoRegisters));
     public readonly FixedBank HRam = new(0xFF80, 0xFFFE, nameof(HRam));
     public readonly FixedBank InterruptEnableRegister = new(0xFFFF, 0xFFFF, nameof(InterruptEnableRegister));
@@ -25,12 +26,14 @@ public class MemoryController
     public MemoryController(ILogger<Gameboy> logger, bool isTestEnvironment)
     {
         _logger = logger;
-        WriteByte(0xFF4D, 0xFF); //TODO: Implement the double speed switch
-        WriteByte(0xFF00, 0xFF);
+        
         if (isTestEnvironment)
         {
             IoRegisters = new MockedFixedBank(0xFF00, 0xFF7F, nameof(IoRegisters));
         }
+        
+        WriteByte(0xFF4D, 0xFF); //TODO: Implement the double speed switch
+        WriteByte(0xFF00, 0xFF);
     }
     
     public void LoadProgram(Stream stream)
@@ -59,13 +62,17 @@ public class MemoryController
     
     public void WriteByte(ushort address, byte value)
     {
+        // if (address <= 0x7FFF)
+        // {
+        //     return; //TODO: MBC0 behavior only
+        // }
         if (address is 0xFF01)
         {
             Console.WriteLine($"SB WRITE: {value:X2}");
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("-----------------");
-            Console.WriteLine(_sb);
             _sb.Append((char)value);
+            Console.WriteLine(_sb);
             Console.WriteLine("-----------------");
             Console.ResetColor();
             if (_sb.ToString().Contains("Passed\n"))
@@ -73,28 +80,27 @@ public class MemoryController
                 throw new Exception("Test Passed");
             }
         }
-        
+
         var memoryBank = FindMemoryBank(ref address);
+        
         _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
         memoryBank.WriteByte(ref address, ref value);
     }
     
     public void WriteWord(ushort address, ushort value)
     {
-        if (address is 0xDD02 or 0xDD01 or 0xDD03)
-        {
-            throw new Exception();
-        }
         var memoryBank = FindMemoryBank(ref address);
         _logger.LogDebug("Writing word {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
-        memoryBank.WriteWord(ref address, ref value);
+       
+        WriteByte(address, (byte)(value & 0xFF));
+        WriteByte(address.Add(1), (byte)(value >> 8));
     }
     
     public ushort ReadWord(ushort address)
     {
         var memoryBank = FindMemoryBank(ref address);
         _logger.LogDebug("Reading word from memory address: {address:X} located in {memoryBank.Name}", address, memoryBank.Name);
-        return memoryBank.ReadWord(ref address);
+        return (ushort)(ReadByte(address) | (ReadByte(address.Add(1)) << 8));
     }
     
     public void IncrementByte(ushort memoryAddress)
@@ -121,7 +127,9 @@ public class MemoryController
             _ when address >= ExternalRam.StartAddress && address <= ExternalRam.EndAddress => ExternalRam,
             _ when address >= Wram0.StartAddress && address <= Wram0.EndAddress => Wram0,
             _ when address >= Wram1.StartAddress && address <= Wram1.EndAddress => Wram1,
-            _ when address >= EchoRam.StartAddress && address <= EchoRam.EndAddress => EchoRam,
+            _ when address >= 0xC000 && address <= 0xCFFF => Wram0, //Echo of Wram0
+            _ when address >= 0xD000 && address <= 0xFDFF => Wram1, //Echo of Wram1
+            // _ when address >= EchoRam.StartAddress && address <= EchoRam.EndAddress => EchoRam,
             _ when address >= Oam.StartAddress && address <= Oam.EndAddress => Oam,
             _ when address >= NotUsable.StartAddress && address <= NotUsable.EndAddress => NotUsable,
             _ when address >= IoRegisters.StartAddress && address <= IoRegisters.EndAddress => IoRegisters,

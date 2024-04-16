@@ -27,17 +27,6 @@ public class FixedBank : IMemory
         MemorySpace[address - StartAddress] = value;
     }
 
-    public virtual ushort ReadWord(ref ushort address)
-    {
-        return (ushort)(MemorySpace[address - StartAddress] | (MemorySpace[address - StartAddress + 1] << 8));
-    }
-
-    public virtual void WriteWord(ref ushort address, ref ushort value)
-    {
-        MemorySpace[address - StartAddress] = (byte)(value & 0xFF);
-        MemorySpace[address - StartAddress + 1] = (byte)(value >> 8);
-    }
-
     public virtual void IncrementByte(ref ushort memoryAddress)
     {
         MemorySpace[memoryAddress - StartAddress]++;

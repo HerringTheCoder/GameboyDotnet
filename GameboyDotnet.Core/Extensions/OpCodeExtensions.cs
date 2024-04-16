@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics.Contracts;
 
-namespace GameboyDotnet.Processor;
+namespace GameboyDotnet.Extensions;
 
 public static class OpCodeExtensions
 {

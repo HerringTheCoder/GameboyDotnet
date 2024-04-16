@@ -11,12 +11,11 @@
         <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.1" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
         <PackageReference Include="Sayers.SDL2.Core" Version="1.0.11" />
     </ItemGroup>
 
     <ItemGroup>
+      <ProjectReference Include="..\GameboyDotnet.Common\GameboyDotnet.Common.csproj" />
       <ProjectReference Include="..\GameboyDotnet.Core\GameboyDotnet.Core.csproj" />
     </ItemGroup>
 

@@ -29,20 +29,20 @@ public partial class Cpu
     /// <summary>
     /// ld [r16mem],a - 0x02, 0x12, 0x22, 0x32
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) LoadRegisterAIntoR16Mem(ref byte opCode, byte r16)
+    private (byte instructionBytesLength, byte durationTStates) LoadRegisterAIntoR16Mem(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16 value: {r16mem} ", opCode, r16);
-        MemoryController.WriteByte(address: Register.GetRegisterValueByR16Mem(r16), Register.A);
+        _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16mem value: {r16mem} ", opCode, r16mem);
+        MemoryController.WriteByte(address: Register.GetRegisterValueByR16Mem(r16mem), Register.A);
         return (1, 8);
     }
 
     /// <summary>
     /// ld a,[r16mem] - 0x0A, 0x1A, 0x2A, 0x3A
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) LoadR16MemIntoRegisterA(ref byte opCode, byte r16)
+    private (byte instructionBytesLength, byte durationTStates) LoadR16MemIntoRegisterA(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16);
-        Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16));
+        _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16mem);
+        Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16mem));
         return (1, 8);
     }
     
@@ -52,7 +52,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) LoadSPIntoImmediateMemory(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Loading SP into memory", opCode);
-        MemoryController.WriteWord(Register.PC.Add(1), Register.SP);
+        MemoryController.WriteWord(MemoryController.ReadWord(Register.PC.Add(1)), Register.SP);
         return (3, 20);
     }
 
@@ -62,7 +62,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) IncrementR16(ref byte opCode, byte r16)
     {
         _logger.LogDebug("{opCode:X2} - Incrementing 16 bit register, r16 value: {r16} ", opCode, r16);
-        Register.SetRegisterByR16(r16, (ushort)(Register.GetRegisterValueByR16(r16) + 1));
+        Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Add(1));
         return (1, 8);
     }
 
@@ -72,7 +72,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) DecrementR16(ref byte opCode, byte r16)
     {
         _logger.LogDebug("{opCode:X2} - Decrementing 16 bit register, r16 value: {r16} ", opCode, r16);
-        Register.SetRegisterByR16(r16, (ushort)(Register.GetRegisterValueByR16(r16) - 1));
+        Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Subtract(1));
         return (1, 8);
     }
 
@@ -83,7 +83,7 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Adding 16 bit register to HL, r16 value: {r16} ", opCode, r16);
         Set16BitAddCarryFlags(Register.HL, Register.GetRegisterValueByR16(r16));
-        Register.HL += Register.GetRegisterValueByR16Mem(r16);
+        Register.HL += Register.GetRegisterValueByR16(r16);
         return (1, 8);
     }
 
@@ -97,18 +97,15 @@ public partial class Cpu
         if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
-            var value = MemoryController.ReadByte(memoryAddress);
-            Set8BitIncrementCarryFlags(value);
+            Set8BitIncrementCarryFlags(MemoryController.ReadByte(memoryAddress));
             MemoryController.IncrementByte(memoryAddress);
             return (1, 12);
         }
-        else
-        {
-            var value = Register.GetRegisterValueByR8(r8);
-            Set8BitIncrementCarryFlags(value);
-            Register.SetRegisterByR8(r8, value.Add(1));
-            return (1, 4);
-        }
+
+        var value = Register.GetRegisterValueByR8(r8);
+        Set8BitIncrementCarryFlags(value);
+        Register.SetRegisterByR8(r8, value.Add(1));
+        return (1, 4);
     }
 
     /// <summary>
@@ -292,6 +289,6 @@ public partial class Cpu
         _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
         IsHalted = true;
         //TODO: Implement GBC mode switch if needed
-        return (2, 4);
+        return (1, 4);
     }
 }
