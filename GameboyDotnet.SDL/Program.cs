@@ -1,5 +1,6 @@
 ﻿using Chip8Emu.SDL;
 using GameboyDotnet;
+using GameboyDotnet.Common;
 using GameboyDotnet.SDL;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
@@ -14,7 +15,7 @@ configuration.GetSection("EmulatorSettings").Bind(emulatorSettings);
 var logger = LoggerHelper.GetLogger<Gameboy>(emulatorSettings.LogLevel);
 
 var (renderer, window) = Renderer.InitializeRendererAndWindow(logger, emulatorSettings);
-var gameboy = new Gameboy(logger);
+var gameboy = new Gameboy(logger, true);
 var keyboardMapper = new KeyboardMapper(emulatorSettings.Keymap);
 var romPath = Path.IsPathRooted(emulatorSettings.RomPath)
     ? Path.Combine(emulatorSettings.RomPath)
@@ -30,9 +31,9 @@ gameboy.ExceptionOccured += (_, _) =>
     cts.Cancel();
     running = false;
 };
-gameboy.DisplayUpdated += (_, _) => { Renderer.RenderStates(renderer, gameboy.Lcd, window); };
+gameboy.DisplayUpdated += (_, _) => { Renderer.RenderStates(renderer, gameboy.Ppu.Lcd, window); };
 
-Task.Run(() => gameboy.RunAsync(emulatorSettings.CyclesPerSecond, emulatorSettings.OperationsPerCycle, emulatorSettings.GpuTickRate, cts.Token));
+Task.Run(() => gameboy.RunAsync(cts.Token));
 
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)

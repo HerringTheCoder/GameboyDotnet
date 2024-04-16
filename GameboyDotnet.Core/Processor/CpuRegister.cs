@@ -9,15 +9,19 @@ namespace GameboyDotnet.Components.Cpu;
 /// </summary>
 public class CpuRegister
 {
-    private ushort _af { get; set; }
-    private ushort _bc { get; set; }
-    private ushort _de { get; set; }
-    private ushort _hf { get; set; }
-    
     /// <summary>
     /// IME - Interrupt Master Enable flag
     /// </summary>
-    public bool InterruptsEnabled { get; set; }
+    public bool InterruptsMasterEnabled { get; set; }
+    public bool IMEPending { get; set; }
+
+    private ushort _af { get; set; } = 0x01B0;
+
+    private ushort _bc { get; set; } = 0x0013;
+
+    private ushort _de { get; set; } = 0x00D8;
+
+    private ushort _hl { get; set; } = 0x014D;
 
     /// <summary>
     /// Stack pointer, always accessed as 16-bit
@@ -27,7 +31,7 @@ public class CpuRegister
     /// <summary>
     /// Program counter, always accessed as 16-bit
     /// </summary>
-    public ushort PC { get; set; }
+    public ushort PC { get; set; } = 0x0100;
 
     /// <summary>
     /// Contains accumulator and flags, splits into A and F
@@ -35,7 +39,7 @@ public class CpuRegister
     public ushort AF
     {
         get => _af;
-        set => _af = value;
+        set => _af = (ushort)((value & 0xFFF0) | (_af & 0x00FF)); //TODO: Double check
     }
 
     /// <summary>
@@ -53,7 +57,7 @@ public class CpuRegister
     public byte F
     {
         get => (byte)(_af & 0x00FF);
-        set => _af = (ushort)((_af & 0xFF00) | value);
+        set => _af = (ushort)((_af & 0xFF00) | (value & 0xF0));
     }
 
     /// <summary>
@@ -77,7 +81,7 @@ public class CpuRegister
     /// <summary>
     /// Half Carry flag, aka 'h' flag, used for DAA instruction
     /// </summary>
-    public bool HalfCarry
+    public bool HalfCarryFlag
     {
         get => (F & 0b00100000) != 0;
         set => F = (byte)(value ? F | 0b00100000 : F & 0b11011111);
@@ -151,8 +155,8 @@ public class CpuRegister
     /// </summary>
     public ushort HL
     {
-        get => _hf;
-        set => _hf = value;
+        get => _hl;
+        set => _hl = value;
     }
 
     /// <summary>
@@ -160,8 +164,8 @@ public class CpuRegister
     /// </summary>
     public byte H
     {
-        get => (byte)(_hf >> 8);
-        set => _hf = (ushort)((_hf & 0x00FF) | (value << 8));
+        get => (byte)(_hl >> 8);
+        set => _hl = (ushort)((_hl & 0x00FF) | (value << 8));
     }
 
     /// <summary>
@@ -169,8 +173,8 @@ public class CpuRegister
     /// </summary>
     public byte L
     {
-        get => (byte)(_hf & 0x00FF);
-        set => _hf = (ushort)((_hf & 0xFF00) | value);
+        get => (byte)(_hl & 0x00FF);
+        set => _hl = (ushort)((_hl & 0xFF00) | value);
     }
 
     public void SetRegisterByR16(int r16, ushort value)

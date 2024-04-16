@@ -4,6 +4,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameboyDotnet.Core", "Gameb
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameboyDotnet.SDL", "GameboyDotnet.SDL\GameboyDotnet.SDL.csproj", "{8C7A2011-90AD-4CD2-A804-12F39DA28ECF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameboyDotnet.Tests", "GameboyDotnet.Tests\GameboyDotnet.Tests.csproj", "{63B61CAE-3376-4849-B06F-BE0480744F2F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameboyDotnet.Common", "GameboyDotnet.Common\GameboyDotnet.Common.csproj", "{0054A89A-387F-475B-ADB5-973B52D171BA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +22,13 @@ Global
 		{8C7A2011-90AD-4CD2-A804-12F39DA28ECF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C7A2011-90AD-4CD2-A804-12F39DA28ECF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C7A2011-90AD-4CD2-A804-12F39DA28ECF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63B61CAE-3376-4849-B06F-BE0480744F2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63B61CAE-3376-4849-B06F-BE0480744F2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63B61CAE-3376-4849-B06F-BE0480744F2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63B61CAE-3376-4849-B06F-BE0480744F2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0054A89A-387F-475B-ADB5-973B52D171BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0054A89A-387F-475B-ADB5-973B52D171BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0054A89A-387F-475B-ADB5-973B52D171BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0054A89A-387F-475B-ADB5-973B52D171BA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

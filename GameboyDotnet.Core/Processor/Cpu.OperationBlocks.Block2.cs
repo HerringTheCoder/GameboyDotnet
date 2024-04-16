@@ -1,7 +1,7 @@
 ﻿using GameboyDotnet.Extensions;
 using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {
@@ -11,13 +11,14 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddR8ToA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - ADD A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Set8BitAddCarryFlags(Register.A, value);
         Register.A = Register.A.Add(value);
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -26,13 +27,14 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) AddR8ToAWithCarry(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - ADC A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
-
-        Set8BitAddCarryFlags(Register.A, value);
-        Register.A = Register.A.Add(value).Add((byte)(Register.CarryFlag ? 1 : 0));
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        
+        var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
+        Set8BitAddCarryFlags(Register.A, value, carryFlag);
+        Register.A = Register.A.Add(value).Add(carryFlag);
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -41,13 +43,13 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) SubtractR8FromA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - SUB A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Set8BitSubtractCompareFlags(Register.A, value);
         Register.A = Register.A.Subtract(value);
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -60,8 +62,9 @@ public partial class Cpu
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
-        Set8BitSubtractCompareFlags(Register.A, value);
-        Register.A = Register.A.Subtract(value).Subtract((byte)(Register.CarryFlag ? 1 : 0));
+        var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
+        Set8BitSubtractCompareFlags(Register.A, value, carryFlag);
+        Register.A = Register.A.Subtract(value).Subtract(carryFlag);
         return (1, (byte)(r8 == 0b110 ? 8 : 4));
     }
 
@@ -86,13 +89,13 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) XorR8WithA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - XOR A, {r8R8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Register.A = (byte)(Register.A ^ value);
         Set8BitOrXorFlags();
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -113,12 +116,12 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) CompareR8WithA(ref byte opCode, byte r8)
     {
         _logger.LogDebug("{opcode:X2} - CP A, {r8R8:X}", opCode, r8);
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         //CP is effectively the same as SUB, but without storing the result, so we can reuse the SUB flags method
         Set8BitSubtractCompareFlags(Register.A, value);
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 }

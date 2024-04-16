@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.SDL;
+namespace GameboyDotnet.Common;
 
 public static class LoggerHelper
 {

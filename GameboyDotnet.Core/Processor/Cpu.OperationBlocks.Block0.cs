@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 
 // ReSharper disable InconsistentNaming
 
-namespace GameboyDotnet.Components.Cpu;
+namespace GameboyDotnet.Processor;
 
 public partial class Cpu
 {
@@ -29,30 +29,30 @@ public partial class Cpu
     /// <summary>
     /// ld [r16mem],a - 0x02, 0x12, 0x22, 0x32
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) LoadRegisterAIntoR16Mem(ref byte opCode, byte r16)
+    private (byte instructionBytesLength, byte durationTStates) LoadRegisterAIntoR16Mem(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16 value: {r16mem} ", opCode, r16);
-        MemoryController.WriteByte(address: Register.GetRegisterValueByR16Mem(r16), Register.A);
+        _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16mem value: {r16mem} ", opCode, r16mem);
+        MemoryController.WriteByte(address: Register.GetRegisterValueByR16Mem(r16mem), Register.A);
         return (1, 8);
     }
 
     /// <summary>
     /// ld a,[r16mem] - 0x0A, 0x1A, 0x2A, 0x3A
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) LoadR16MemIntoRegisterA(ref byte opCode, byte r16)
+    private (byte instructionBytesLength, byte durationTStates) LoadR16MemIntoRegisterA(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16);
-        Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16));
+        _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16mem);
+        Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16mem));
         return (1, 8);
     }
-
+    
     /// <summary>
     /// ld [imm16],sp - 0x08
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadSPIntoImmediateMemory(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Loading SP into memory", opCode);
-        MemoryController.WriteWord((ushort)(Register.PC + 1), Register.SP);
+        MemoryController.WriteWord(MemoryController.ReadWord(Register.PC.Add(1)), Register.SP);
         return (3, 20);
     }
 
@@ -62,7 +62,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) IncrementR16(ref byte opCode, byte r16)
     {
         _logger.LogDebug("{opCode:X2} - Incrementing 16 bit register, r16 value: {r16} ", opCode, r16);
-        Register.SetRegisterByR16(r16, (ushort)(Register.GetRegisterValueByR16(r16) + 1));
+        Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Add(1));
         return (1, 8);
     }
 
@@ -72,7 +72,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) DecrementR16(ref byte opCode, byte r16)
     {
         _logger.LogDebug("{opCode:X2} - Decrementing 16 bit register, r16 value: {r16} ", opCode, r16);
-        Register.SetRegisterByR16(r16, (ushort)(Register.GetRegisterValueByR16(r16) - 1));
+        Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Subtract(1));
         return (1, 8);
     }
 
@@ -83,7 +83,7 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Adding 16 bit register to HL, r16 value: {r16} ", opCode, r16);
         Set16BitAddCarryFlags(Register.HL, Register.GetRegisterValueByR16(r16));
-        Register.HL += Register.GetRegisterValueByR16Mem(r16);
+        Register.HL += Register.GetRegisterValueByR16(r16);
         return (1, 8);
     }
 
@@ -94,21 +94,18 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Incrementing 8 bit register, r8 value: {r8} ", opCode, r8);
         //6 = [HL], which requires a direct memory read and write
-        if (r8 == 6)
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
-            var value = MemoryController.ReadByte(memoryAddress);
-            Set8BitIncrementCarryFlags(value);
+            Set8BitIncrementCarryFlags(MemoryController.ReadByte(memoryAddress));
             MemoryController.IncrementByte(memoryAddress);
             return (1, 12);
         }
-        else
-        {
-            var value = Register.GetRegisterValueByR8(r8);
-            Set8BitIncrementCarryFlags(value);
-            Register.SetRegisterByR8(r8, value.Add(1));
-            return (1, 4);
-        }
+
+        var value = Register.GetRegisterValueByR8(r8);
+        Set8BitIncrementCarryFlags(value);
+        Register.SetRegisterByR8(r8, value.Add(1));
+        return (1, 4);
     }
 
     /// <summary>
@@ -116,8 +113,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecrementR8(ref byte opCode, byte r8)
     {
-        //6 = [HL], which requires a direct memory read and write
-        if (r8 == 6)
+        _logger.LogDebug("{opCode:X2} - Decrementing 8 bit register, r8 value: {r8} ", opCode, r8);
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
             Set8BitDecrementCarryFlags(MemoryController.ReadByte(memoryAddress));
@@ -138,7 +135,7 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Loading immediate 8 bit value into register, r8 value: {r8} ", opCode, r8);
         var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
-        if (r8 == 6)
+        if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
             MemoryController.WriteByte(memoryAddress, immediate8Bit);
@@ -150,73 +147,82 @@ public partial class Cpu
     }
 
     /// <summary>
-    /// rlca - 0x07 - Rotate left register
+    /// RLA - 0x17 - Rotate left register A, use old carry bit
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterA(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating left register A", opCode);
         var oldCarryFlag = Register.CarryFlag;
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0; //most significant bit
         Register.A = (byte)(Register.A << 1 | (oldCarryFlag ? 1 : 0));
         return (1, 4);
     }
 
     /// <summary>
-    ///  rrca - 0x0F - Rotate right register A
+    ///  RRA - 0x1F - Rotate right register A, use old carry bit
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateRightRegisterA(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating right register A", opCode);
         var oldCarryFlag = Register.CarryFlag;
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0; //least significant bit
-        Register.A = (byte)(Register.A >> 1 | (oldCarryFlag ? 0b1000_0000 : 0));
+        Register.A = (byte)((Register.A >> 1) | (oldCarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
     }
 
+    /// <summary>
+    /// RLCA - 0x0F - Rotate left register A through carry
+    /// </summary>
+    /// <param name="opCode"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterAThroughCarry(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating left register A through carry", opCode);
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0;
         Register.A = (byte)(Register.A << 1 | (Register.CarryFlag ? 1 : 0));
         return (1, 4);
     }
 
+    /// <summary>
+    /// RRCA - 0x0F - Rotate right register A through carry
+    /// </summary>
+    /// <param name="opCode"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateRightRegisterAThroughCarry(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Rotating right register A through carry", opCode);
-        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarry) = (false, false, false);
+        (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0;
-        Register.A = (byte)(Register.A >> 1 | (Register.CarryFlag ? 0b1000_0000 : 0));
+        Register.A = (byte)((Register.A >> 1) | (Register.CarryFlag ? 0b1000_0000 : 0));
         return (1, 4);
     }
 
     /// <summary>
-    /// daa - 0x27 - Decimal adjust accumulator
+    /// DAA - 0x27 - Decimal adjust accumulator
+    /// Credits to Eric Haskins': https://ehaskins.com/2018-01-30%20Z80%20DAA/
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecimalAdjustAccumulator(ref byte opCode)
     {
         _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
 
         byte adjust = 0;
-        if (Register.CarryFlag || (Register.A & 0x0F) > 9)
+        
+        if (Register.HalfCarryFlag || (!Register.NegativeFlag && (Register.A & 0x0F) > 9))
             adjust |= 0x06;
 
-        if (Register.CarryFlag || Register.A > 0x99)
+        if (Register.CarryFlag || Register is { NegativeFlag: false, A: > 0x99 })
         {
             adjust |= 0x60;
             Register.CarryFlag = true;
         }
 
-        byte result = (byte)(Register.A + (Register.CarryFlag ? 1 : 0));
-        result += adjust;
+        byte result = Register.NegativeFlag ? Register.A.Subtract(adjust) : Register.A.Add(adjust);
+        result &= 0xFF;
         Register.A = result;
 
-        Register.HalfCarry = (Register.A & 0x0F) > 9 || (Register.A & 0x0F) + (Register.CarryFlag ? 1 : 0) > 0x0F;
+        Register.HalfCarryFlag = false;
         Register.ZeroFlag = result == 0;
-        Register.NegativeFlag = (result & 0x80) != 0;
         return (1, 4);
     }
 
@@ -225,7 +231,7 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) ComplementAccumulator(ref byte opCode)
     {
-        (Register.NegativeFlag, Register.HalfCarry) = (true, true);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (true, true);
         Register.A = (byte)~Register.A;
         return (1, 4);
     }
@@ -236,7 +242,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) SetCarryFlag(ref byte opCode)
     {
         Register.CarryFlag = true;
-        (Register.NegativeFlag, Register.HalfCarry) = (false, false);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
         return (1, 4);
     }
 
@@ -246,7 +252,7 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ComplementCarryFlag(ref byte opCode)
     {
         Register.CarryFlag = !Register.CarryFlag;
-        (Register.NegativeFlag, Register.HalfCarry) = (false, false);
+        (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
         return (1, 4);
     }
 
@@ -257,9 +263,8 @@ public partial class Cpu
     {
         _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit", opCode);
         var immediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
-        Register.PC = (ushort)(Register.PC + immediate8Bit); 
-        //TODO: Double check if Register.PC should be incremented by 2 or compensated
-        return (2, 12);
+        Register.PC = (ushort)(Register.PC + 2 + immediate8Bit);
+        return (0, 12);
     }
 
 
@@ -279,10 +284,11 @@ public partial class Cpu
     /// <summary>
     /// stop - 0x10 - Stop CPU, also used to switch GBC double speed mode
     /// </summary>
-    private (byte instructionBytesLength, byte durationTStates) Stop()
+    private (byte instructionBytesLength, byte durationTStates) Stop(ref byte opCode)
     {
+        _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
         IsHalted = true;
         //TODO: Implement GBC mode switch if needed
-        return (2, 4);
+        return (1, 4);
     }
 }
