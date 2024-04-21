@@ -1,4 +1,5 @@
 ﻿using GameboyDotnet.Components;
+using GameboyDotnet.Memory;
 
 namespace GameboyDotnet.Timers;
 
@@ -9,9 +10,9 @@ public class DividerTimer
     internal void CheckAndIncrementTimer(ref byte tStates, MemoryController memoryController)
     {
         _dividerCycleCounter += tStates;
-        if (_dividerCycleCounter >= Constants.DividerCycles)
+        if (_dividerCycleCounter >= Cycles.DividerCycles)
         {
-            _dividerCycleCounter -= Constants.DividerCycles;
+            _dividerCycleCounter -= Cycles.DividerCycles;
             memoryController.IncrementByte(Constants.DIVRegister);
         }
     }

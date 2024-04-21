@@ -3,16 +3,25 @@ using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory.BuildingBlocks;
 using Microsoft.Extensions.Logging;
 
-namespace GameboyDotnet.Components;
+namespace GameboyDotnet.Memory;
 
 public class MemoryController
 {
     public readonly FixedBank RomBank0 = new(0x0000, 0x3FFF, nameof(RomBank0));
-    public SwitchableBank RomBankNn = new(0x4000, 0x7FFF, nameof(RomBankNn), bankSizeInBytes: 16*1024, numberOfBanks: 512);
-    public SwitchableBank Vram = new(0x8000, 0x9FFF, nameof(Vram), bankSizeInBytes: 8*1024, numberOfBanks:2);
-    public SwitchableBank ExternalRam = new(0xA000, 0xBFFF, nameof(ExternalRam), bankSizeInBytes:8*1024, numberOfBanks:512);
+
+    public SwitchableBank RomBankNn = new(0x4000, 0x7FFF, nameof(RomBankNn), bankSizeInBytes: 16 * 1024,
+        numberOfBanks: 512);
+
+    public SwitchableBank Vram = new(0x8000, 0x9FFF, nameof(Vram), bankSizeInBytes: 8 * 1024, numberOfBanks: 2);
+
+    public SwitchableBank ExternalRam =
+        new(0xA000, 0xBFFF, nameof(ExternalRam), bankSizeInBytes: 8 * 1024, numberOfBanks: 512);
+
     public readonly FixedBank Wram0 = new(0xC000, 0xCFFF, nameof(Wram0));
-    public readonly SwitchableBank Wram1 = new(0xD000, 0xDFFF, nameof(Wram1), bankSizeInBytes: 4*1024, numberOfBanks: 8);
+
+    public readonly SwitchableBank Wram1 = new(0xD000, 0xDFFF, nameof(Wram1), bankSizeInBytes: 4 * 1024,
+        numberOfBanks: 8);
+
     // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
     public readonly FixedBank Oam = new(0xFE00, 0xFE9F, nameof(Oam));
     public readonly FixedBank NotUsable = new(0xFEA0, 0xFEFF, nameof(NotUsable));
@@ -22,26 +31,52 @@ public class MemoryController
 
     private StringBuilder _sb = new();
     private readonly ILogger<Gameboy> _logger;
-    
+
     public MemoryController(ILogger<Gameboy> logger, bool isTestEnvironment)
     {
         _logger = logger;
-        
+
         if (isTestEnvironment)
         {
             IoRegisters = new MockedFixedBank(0xFF00, 0xFF7F, nameof(IoRegisters));
         }
-        
+
+        WriteByte(0xFF00, 0xCF);
+        WriteByte(0xFF02, 0x7E);
+        WriteByte(0xFF04, 0xAB);//18?
+        WriteByte(0xFF07, 0xF8);
+        WriteByte(0xFF0F, 0xE1);
+        WriteByte(0xFF10, 0x80);
+        WriteByte(0xFF11, 0xBF);
+        WriteByte(0xFF12, 0xF3);
+        WriteByte(0xFF13, 0xFF);
+        WriteByte(0xFF14, 0xBF);
+        WriteByte(0xFF16, 0x3F);
+        WriteByte(0xFF18, 0xFF);
+        WriteByte(0xFF19, 0xBF);
+        WriteByte(0xFF1A, 0x7F);
+        WriteByte(0xFF1B, 0xFF);
+        WriteByte(0xFF1C, 0x9F);
+        WriteByte(0xFF1D, 0xFF);
+        WriteByte(0xFF1E, 0xBF);
+        WriteByte(0xFF20, 0xFF);
+        WriteByte(0xFF23, 0xBF);
+        WriteByte(0xFF24, 0x77);
+        WriteByte(0xFF25, 0xF3);
+        WriteByte(0xFF26, 0xF1);
+        WriteByte(0xFF40, 0x91);
+        WriteByte(0xFF41, 0x81);
+        WriteByte(0xFF44, 0x90);
+        WriteByte(0xFF47, 0xFC);
         WriteByte(0xFF4D, 0xFF); //TODO: Implement the double speed switch
-        WriteByte(0xFF00, 0xFF);
     }
-    
+
     public void LoadProgram(Stream stream)
     {
         int bytesRead;
         int currentPosition = 0;
         //TODO: Determine the size and mapper of the ROM, then setup and load the banks accordingly
-        
+
         while ((bytesRead = stream.Read(RomBank0.MemorySpace, 0, RomBank0.MemorySpace.Length - currentPosition)) > 0)
         {
             currentPosition += bytesRead;
@@ -56,17 +91,24 @@ public class MemoryController
     public byte ReadByte(ushort address)
     {
         var memoryBank = FindMemoryBank(ref address);
-        _logger.LogDebug("Reading byte from memory address: {address:X} located in {memoryBank.Name}", address, memoryBank.Name);
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Reading byte from memory address: {address:X} located in {memoryBank.Name}", address,
+                memoryBank.Name);
+        
+        if(address == 0xFF00)
+        {
+            return 0b1101_0110;
+        }
         return memoryBank.ReadByte(ref address);
     }
-    
+
     public void WriteByte(ushort address, byte value)
     {
-        // if (address <= 0x7FFF)
-        // {
-        //     return; //TODO: MBC0 behavior only
-        // }
-        if (address is 0xFF01)
+        if (address <= 0x7FFF)
+        {
+            return; //TODO: MBC0 behavior only
+        }
+        if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
         {
             Console.WriteLine($"SB WRITE: {value:X2}");
             Console.ForegroundColor = ConsoleColor.Green;
@@ -77,43 +119,61 @@ public class MemoryController
             Console.ResetColor();
             if (_sb.ToString().Contains("Passed\n"))
             {
-                throw new Exception("Test Passed");
+                // throw new Exception("Test Passed");
             }
         }
 
         var memoryBank = FindMemoryBank(ref address);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}",
+                value, address, memoryBank.Name);
         
-        _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
         memoryBank.WriteByte(ref address, ref value);
     }
-    
+
     public void WriteWord(ushort address, ushort value)
     {
         var memoryBank = FindMemoryBank(ref address);
-        _logger.LogDebug("Writing word {value:X} to memory address: {address:X} located in {memoryBank.Name}", value, address, memoryBank.Name);
-       
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Writing word {value:X} to memory address: {address:X} located in {memoryBank.Name}",
+                value, address, memoryBank.Name);
+
         WriteByte(address, (byte)(value & 0xFF));
         WriteByte(address.Add(1), (byte)(value >> 8));
     }
-    
+
     public ushort ReadWord(ushort address)
     {
         var memoryBank = FindMemoryBank(ref address);
-        _logger.LogDebug("Reading word from memory address: {address:X} located in {memoryBank.Name}", address, memoryBank.Name);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Reading word from memory address: {address:X} located in {memoryBank.Name}", address,
+                memoryBank.Name);
+
         return (ushort)(ReadByte(address) | (ReadByte(address.Add(1)) << 8));
     }
-    
+
     public void IncrementByte(ushort memoryAddress)
     {
         var memoryBank = FindMemoryBank(ref memoryAddress);
-        _logger.LogDebug("Incrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}", memoryAddress, memoryBank.Name);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Incrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}",
+                memoryAddress, memoryBank.Name);
+
         memoryBank.IncrementByte(ref memoryAddress);
     }
-    
+
     public void DecrementByte(ushort memoryAddress)
     {
         var memoryBank = FindMemoryBank(ref memoryAddress);
-        _logger.LogDebug("Decrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}", memoryAddress, memoryBank.Name);
+
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Decrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}",
+                memoryAddress, memoryBank.Name);
+
         memoryBank.DecrementByte(ref memoryAddress);
     }
 
@@ -134,7 +194,8 @@ public class MemoryController
             _ when address >= NotUsable.StartAddress && address <= NotUsable.EndAddress => NotUsable,
             _ when address >= IoRegisters.StartAddress && address <= IoRegisters.EndAddress => IoRegisters,
             _ when address >= HRam.StartAddress && address <= HRam.EndAddress => HRam,
-            _ when address >= InterruptEnableRegister.StartAddress && address <= InterruptEnableRegister.EndAddress => InterruptEnableRegister,
+            _ when address >= InterruptEnableRegister.StartAddress && address <= InterruptEnableRegister.EndAddress =>
+                InterruptEnableRegister,
             _ => throw new ArgumentOutOfRangeException(
                 nameof(address),
                 $"Could not find a memory bank for the given address: {address:X}")

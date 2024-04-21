@@ -261,7 +261,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) JumpRelativeImmediate8bit(ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit", opCode);
         var immediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
         Register.PC = (ushort)(Register.PC + 2 + immediate8Bit);
         return (0, 12);
