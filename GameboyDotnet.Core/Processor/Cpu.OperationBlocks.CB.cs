@@ -18,7 +18,7 @@ public partial class Cpu
         {
             var oldCarryFlag = Register.CarryFlag;
             (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
-            Register.CarryFlag = (registerValue & 0b1000_0000) != 0;
+            Register.CarryFlag = registerValue.IsBitSet(7);
             var result = (byte)(registerValue << 1 | (oldCarryFlag ? 1 : 0));
             Register.ZeroFlag = result == 0;
             return result;
@@ -49,7 +49,7 @@ public partial class Cpu
         {
             var oldCarryFlag = Register.CarryFlag;
             (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
-            Register.CarryFlag = (registerValue & 0b0000_0001) != 0; //least significant bit
+            Register.CarryFlag = registerValue.IsBitSet(0); //least significant bit
             var value = (byte)((registerValue >> 1) | (oldCarryFlag ? 0b1000_0000 : 0));
             Register.ZeroFlag = value == 0;
             return value;
@@ -109,7 +109,7 @@ public partial class Cpu
         byte RotateRightThroughCarryCb(ref byte registerValue)
         {
             (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
-            Register.CarryFlag = (registerValue & 0b0000_0001) != 0;
+            Register.CarryFlag = registerValue.IsBitSet(0);
             var value = (byte)((registerValue >> 1) | (Register.CarryFlag ? 0b1000_0000 : 0));
             Register.ZeroFlag = value == 0;
             return value;
@@ -140,7 +140,7 @@ public partial class Cpu
         byte ShiftLeft(ref byte registerValue)
         {
             (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
-            Register.CarryFlag = (registerValue & 0b1000_0000) != 0;
+            Register.CarryFlag = registerValue.IsBitSet(7);
             var value = (byte)(registerValue << 1);
             Register.ZeroFlag = value == 0;
             return value;
@@ -169,7 +169,7 @@ public partial class Cpu
         byte ShiftRight(ref byte registerValue)
         {
             (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
-            Register.CarryFlag = (registerValue & 0b0000_0001) != 0;
+            Register.CarryFlag = registerValue.IsBitSet(0);
             var value = (byte)((registerValue & 0b1000_0000) | (registerValue >> 1));
             Register.ZeroFlag = value == 0;
             return value;
@@ -227,7 +227,7 @@ public partial class Cpu
         byte ShiftRightLogically(ref byte registerValue)
         {
             (Register.NegativeFlag, Register.HalfCarryFlag) = (false, false);
-            Register.CarryFlag = (registerValue & 0b0000_0001) != 0;
+            Register.CarryFlag = registerValue.IsBitSet(0);
             var result = (byte)(registerValue >> 1);
             Register.ZeroFlag = result == 0;
             return result;

@@ -1,6 +1,7 @@
-﻿using GameboyDotnet.Components;
+﻿using System.Numerics;
 using GameboyDotnet.Components.Cpu;
 using GameboyDotnet.Extensions;
+using GameboyDotnet.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet.Processor;
@@ -10,7 +11,6 @@ public partial class Cpu
     internal CpuRegister Register { get; set; } = new();
     internal MemoryController MemoryController { get; }
     public bool IsHalted { get; set; }
-    private int _tStatesCounter = 0;
     private readonly ILogger<Gameboy> _logger;
 
     private readonly bool _isTestEnvironment;
@@ -24,14 +24,7 @@ public partial class Cpu
 
     public byte ExecuteNextOperation()
     {
-        var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
-        var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
-        var interrupt = interruptFlags & interruptEnable;
-        if (interrupt != 0)
-        {
-            _logger.LogDebug("Interrupt detected: {interrupt:X2}", interrupt);
-            HandleInterrupt(interrupt);
-        }
+        HandleInterrupt();
         
         if(IsHalted)
         {
@@ -61,15 +54,24 @@ public partial class Cpu
         return operationSize.durationTStates;
     }
 
-    private void HandleInterrupt(int interrupt)
+    private void HandleInterrupt()
     {
+        var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
+        var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
+        var interrupt = (byte)(interruptFlags & interruptEnable);
+        
+        if(interrupt == 0)
+            return;
+
         IsHalted = false;
         if (Register.InterruptsMasterEnabled)
         {
+            int interruptIndex = BitOperations.TrailingZeroCount(interrupt);
             Register.InterruptsMasterEnabled = false;
-            MemoryController.WriteByte(Constants.IFRegister, 0);
+            MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
             PushStack(Register.PC);
-            Register.PC = interrupt switch
+            
+            Register.PC = (1 << interruptIndex)  switch
             {
                 0x01 => 0x0040,
                 0x02 => 0x0048,
@@ -83,26 +85,26 @@ public partial class Cpu
 
     
 
-    private void LogTestOutput(StreamWriter writer)
-    {
-        var pcmem0 = MemoryController.ReadByte(Register.PC);
-        var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
-        var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
-        var pcmem3 = MemoryController.ReadByte(Register.PC.Add(3));
-
-        writer.WriteLine(
-            $"A:{Register.A:X2} " +
-            $"F:{Register.F:X2} " +
-            $"B:{Register.B:X2} " +
-            $"C:{Register.C:X2} " +
-            $"D:{Register.D:X2} " +
-            $"E:{Register.E:X2} " +
-            $"H:{Register.H:X2} " +
-            $"L:{Register.L:X2} " +
-            $"SP:{Register.SP:X4} " +
-            $"PC:{Register.PC:X4} " +
-            $"PCMEM:{pcmem0:X2},{pcmem1:X2},{pcmem2:X2},{pcmem3:X2}");
-    }
+    // private void LogTestOutput(StreamWriter writer)
+    // {
+    //     var pcmem0 = MemoryController.ReadByte(Register.PC);
+    //     var pcmem1 = MemoryController.ReadByte(Register.PC.Add(1));
+    //     var pcmem2 = MemoryController.ReadByte(Register.PC.Add(2));
+    //     var pcmem3 = MemoryController.ReadByte(Register.PC.Add(3));
+    //
+    //     writer.WriteLine(
+    //         $"A:{Register.A:X2} " +
+    //         $"F:{Register.F:X2} " +
+    //         $"B:{Register.B:X2} " +
+    //         $"C:{Register.C:X2} " +
+    //         $"D:{Register.D:X2} " +
+    //         $"E:{Register.E:X2} " +
+    //         $"H:{Register.H:X2} " +
+    //         $"L:{Register.L:X2} " +
+    //         $"SP:{Register.SP:X4} " +
+    //         $"PC:{Register.PC:X4} " +
+    //         $"PCMEM:{pcmem0:X2},{pcmem1:X2},{pcmem2:X2},{pcmem3:X2}");
+    // }
 
     private bool CheckCondition(ref byte opCode)
     {

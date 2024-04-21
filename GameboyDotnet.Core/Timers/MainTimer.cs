@@ -1,4 +1,6 @@
 ﻿using GameboyDotnet.Components;
+using GameboyDotnet.Extensions;
+using GameboyDotnet.Memory;
 
 namespace GameboyDotnet.Timers;
 
@@ -9,7 +11,7 @@ public class MainTimer
     internal void CheckAndIncrementTimer(ref byte durationTStates, MemoryController memoryController)
     {
         var timerControl = memoryController.ReadByte(Constants.TACRegister);
-        if ((timerControl & 0b100) == 0) //Timer is disabled, do nothing
+        if (!timerControl.IsBitSet(2)) //Timer is disabled, do nothing
             return;
         
         _tStatesCounter += durationTStates;
@@ -26,7 +28,7 @@ public class MainTimer
                 memoryController.WriteByte(Constants.TIMARegister, memoryController.ReadByte(Constants.TMARegister));
                 memoryController.WriteByte(
                     Constants.IFRegister,
-                    (byte)(memoryController.ReadByte(Constants.IFRegister) | 0b100)
+                    memoryController.ReadByte(Constants.IFRegister).SetBit(2)
                 );
             }
         }

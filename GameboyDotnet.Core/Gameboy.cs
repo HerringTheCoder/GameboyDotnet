@@ -1,5 +1,5 @@
-﻿using GameboyDotnet.Components;
-using GameboyDotnet.PPU;
+﻿using System.Diagnostics;
+using GameboyDotnet.Graphics;
 using GameboyDotnet.Processor;
 using GameboyDotnet.Timers;
 using Microsoft.Extensions.Logging;
@@ -19,7 +19,7 @@ public partial class Gameboy
     {
         _logger = logger;
         Cpu = new Cpu(logger, isTestEnvironment);
-        Ppu = new Ppu(new Lcd(Cpu.MemoryController));
+        Ppu = new Ppu(Cpu.MemoryController);
     }
 
     public void LoadProgram(FileStream stream)
@@ -29,16 +29,32 @@ public partial class Gameboy
     }
 
     public async Task RunAsync(
-       CancellationToken ctsToken)
+        CancellationToken ctsToken)
     {
+        var sw = new Stopwatch();
+        var cyclesPerFrame = Cycles.CyclesPerFrame;
+        var currentCycles = 0;
+
         while (!ctsToken.IsCancellationRequested)
         {
             try
             {
-                var tStates = Cpu.ExecuteNextOperation();
-                TimaTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
-                DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
-                Ppu.CheckAndPush(tStates, Cpu.MemoryController);
+                sw.Restart();
+                while (currentCycles < cyclesPerFrame)
+                {
+                    var tStates = Cpu.ExecuteNextOperation();
+                    Ppu.PushPpuCycles(tStates);
+                    TimaTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
+                     DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
+                    currentCycles += tStates;
+                }
+                
+                DisplayUpdated.Invoke(this, EventArgs.Empty);
+                sw.Stop();
+                currentCycles -= cyclesPerFrame;
+            
+                // if (sw.Elapsed < TimeSpan.FromMilliseconds(16.7))
+                //     await Task.Delay(TimeSpan.FromMilliseconds(16.7) - sw.Elapsed, ctsToken);
             }
             catch (Exception ex)
             {
@@ -46,6 +62,5 @@ public partial class Gameboy
                 throw;
             }
         }
-       
     }
 }

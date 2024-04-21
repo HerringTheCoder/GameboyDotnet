@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using GameboyDotnet.Components;
+using GameboyDotnet.Graphics;
 using Microsoft.Extensions.Logging;
 using SDL2;
 using static SDL2.SDL;
@@ -12,8 +13,10 @@ public static class Renderer
     private const int ScreenHeight = 144;
 
     // Constants for colors
-    private static readonly SDL_Color ColorOn = new() { r = 255, g = 255, b = 255, a = 255 }; // White
-    private static readonly SDL_Color ColorOff = new() { r = 64, g = 64, b = 64, a = 255 };    // Dark gray
+    private static readonly SDL_Color White = new() { r = 255, g = 255, b = 255, a = 255 };
+    private static readonly SDL_Color LightGray = new() { r = 170, g = 170, b = 170, a = 255 };
+    private static readonly SDL_Color DarkGray = new() { r = 85, g = 85, b = 85, a = 255 };
+    private static readonly SDL_Color Black = new() { r = 0, g = 0, b = 0, a = 255 };
     
     public static void RenderStates(nint renderer, Lcd lcd, nint window)
     {
@@ -26,13 +29,13 @@ public static class Renderer
             float scaleY = (float)windowHeight / ScreenHeight;
 
             // Determine the smaller scaling factor to maintain aspect ratio
-            float scale = Math.Min(scaleX, scaleY);
+            double scale = Math.Ceiling(Math.Min(scaleX, scaleY));
 
             // Calculate scaled window size
             int scaledWidth = (int)(ScreenWidth * scale);
             int scaledHeight = (int)(ScreenHeight * scale);
 
-            SDL_SetRenderDrawColor(renderer, ColorOff.r, ColorOff.g, ColorOff.b, 255); // Clear the renderer
+            SDL_SetRenderDrawColor(renderer, White.r, White.g, White.b, 255); // Clear the renderer
             SDL_RenderClear(renderer);
             SDL_RenderSetLogicalSize(renderer, scaledWidth, scaledHeight);
 
@@ -43,7 +46,15 @@ public static class Renderer
                 {
                     if (lcd.Buffer[x, y] != 0)
                     {
-                        SDL_SetRenderDrawColor(renderer, ColorOn.r, ColorOn.g, ColorOn.b, ColorOn.a);
+                        var color = lcd.Buffer[x, y] switch
+                        {
+                            0 => White,
+                            1 => LightGray,
+                            2 => DarkGray,
+                            3 => Black,
+                            _ => throw new ArgumentOutOfRangeException()
+                        };
+                        SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
                         SDL_Rect rect = new SDL_Rect
                         {
                             x = (int)(x * scale),
@@ -72,7 +83,7 @@ public static class Renderer
             logger.LogCritical("There was an issue initializing SDL. {SDL_GetError()}", SDL_GetError());
         }
 
-        var window = SDL_CreateWindow("Chip8Emu",
+        var window = SDL_CreateWindow("GameboyDotnet",
             SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED,
             w: emulatorSettings.WindowWidth,
@@ -86,8 +97,9 @@ public static class Renderer
 
         var renderer = SDL_CreateRenderer(window,
             -1,
-            SDL_RendererFlags.SDL_RENDERER_ACCELERATED |
-            SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
+            SDL_RendererFlags.SDL_RENDERER_ACCELERATED 
+            // | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
+            );
 
         if (renderer == IntPtr.Zero)
         {
