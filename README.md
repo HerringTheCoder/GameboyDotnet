@@ -3,7 +3,7 @@
 Checklist:
 -  ~~Memory mapping with switchable banks~~
 -  ~~CPU Register implementation~~
--  ~~245 standard CPU opcodes implemented~~
+-  ~~500 CPU operations/opcodes implemented~~
 -  ~~Passing CPU json unit tests~~ All CPU tests are passing now!
 -  ~~Testing CPU instructions with blargg's test rom via serial port (+ custom debugger)~~ All Blaarg tests are passing now!
 -  ~~Implementing timers and interrupt handling~~
