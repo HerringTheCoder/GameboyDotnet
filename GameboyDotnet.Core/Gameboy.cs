@@ -13,7 +13,6 @@ public partial class Gameboy
     public Ppu Ppu { get; }
     public MainTimer TimaTimer { get; } = new();
     public DividerTimer DivTimer { get; } = new();
-    public byte? PressedKeyValue { get; set; }
 
     public Gameboy(ILogger<Gameboy> logger, bool isTestEnvironment = false)
     {
@@ -25,13 +24,14 @@ public partial class Gameboy
     public void LoadProgram(FileStream stream)
     {
         Cpu.MemoryController.LoadProgram(stream);
-        _logger.LogDebug("Program loaded successfully");
+        _logger.LogInformation("Program loaded successfully");
     }
 
-    public async Task RunAsync(
+    public Task RunAsync(
         CancellationToken ctsToken)
     {
-        var sw = new Stopwatch();
+        var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks;
+        
         var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
 
@@ -39,22 +39,26 @@ public partial class Gameboy
         {
             try
             {
-                sw.Restart();
+                var startTime = Stopwatch.GetTimestamp();
+                var targetTime = startTime + frameTimeTicks;
                 while (currentCycles < cyclesPerFrame)
                 {
                     var tStates = Cpu.ExecuteNextOperation();
                     Ppu.PushPpuCycles(tStates);
                     TimaTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
-                     DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
+                    DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
                     currentCycles += tStates;
                 }
-                
-                DisplayUpdated.Invoke(this, EventArgs.Empty);
-                sw.Stop();
+                UpdateJoypadState();
+
                 currentCycles -= cyclesPerFrame;
-            
-                // if (sw.Elapsed < TimeSpan.FromMilliseconds(16.7))
-                //     await Task.Delay(TimeSpan.FromMilliseconds(16.7) - sw.Elapsed, ctsToken);
+                DisplayUpdated.Invoke(this, EventArgs.Empty);
+
+                var endTime = Stopwatch.GetTimestamp();
+                // while (Stopwatch.GetTimestamp() < targetTime)
+                // {
+                //     //Wait in a tight loop for until target time is reached
+                // }
             }
             catch (Exception ex)
             {
@@ -62,5 +66,7 @@ public partial class Gameboy
                 throw;
             }
         }
+
+        return Task.CompletedTask;
     }
 }

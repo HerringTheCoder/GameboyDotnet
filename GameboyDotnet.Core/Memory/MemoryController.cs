@@ -7,27 +7,34 @@ namespace GameboyDotnet.Memory;
 
 public class MemoryController
 {
-    public readonly FixedBank RomBank0 = new(0x0000, 0x3FFF, nameof(RomBank0));
+    public readonly FixedBank RomBank0 = new(BankAddress.RomBank0Start, BankAddress.RomBank0End, nameof(RomBank0));
 
-    public SwitchableBank RomBankNn = new(0x4000, 0x7FFF, nameof(RomBankNn), bankSizeInBytes: 16 * 1024,
+    public SwitchableBank RomBankNn = new(BankAddress.RomBankNnStart, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16 * 1024,
         numberOfBanks: 512);
 
-    public SwitchableBank Vram = new(0x8000, 0x9FFF, nameof(Vram), bankSizeInBytes: 8 * 1024, numberOfBanks: 2);
+    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8 * 1024, numberOfBanks: 2);
 
     public SwitchableBank ExternalRam =
-        new(0xA000, 0xBFFF, nameof(ExternalRam), bankSizeInBytes: 8 * 1024, numberOfBanks: 512);
+        new(BankAddress.ExternalRamStart, BankAddress.ExternalRamEnd, nameof(ExternalRam), bankSizeInBytes: 8 * 1024, numberOfBanks: 512);
 
-    public readonly FixedBank Wram0 = new(0xC000, 0xCFFF, nameof(Wram0));
+    public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
 
-    public readonly SwitchableBank Wram1 = new(0xD000, 0xDFFF, nameof(Wram1), bankSizeInBytes: 4 * 1024,
+    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4 * 1024,
         numberOfBanks: 8);
 
     // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
-    public readonly FixedBank Oam = new(0xFE00, 0xFE9F, nameof(Oam));
-    public readonly FixedBank NotUsable = new(0xFEA0, 0xFEFF, nameof(NotUsable));
-    public readonly FixedBank IoRegisters = new(0xFF00, 0xFF7F, nameof(IoRegisters));
-    public readonly FixedBank HRam = new(0xFF80, 0xFFFE, nameof(HRam));
-    public readonly FixedBank InterruptEnableRegister = new(0xFFFF, 0xFFFF, nameof(InterruptEnableRegister));
+    public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
+    public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
+    public readonly FixedBank IoRegisters = new(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters));
+    public readonly FixedBank HRam = new(BankAddress.HRamStart, BankAddress.HRamEnd, nameof(HRam));
+    public readonly FixedBank InterruptEnableRegister = new(BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd, nameof(InterruptEnableRegister));
+    //Cache for read hotspots
+    private byte _interruptEnableRegister = 0x00;
+    private byte _interruptFlagRegister = 0x00;
+    private byte _lcdcRegister = 0x00;
+    internal byte _joypadRegister = 0xFF;
+    public byte DpadStates = 0xF;
+    public byte ButtonStates = 0xF;
 
     private StringBuilder _sb = new();
     private readonly ILogger<Gameboy> _logger;
@@ -40,8 +47,11 @@ public class MemoryController
         {
             IoRegisters = new MockedFixedBank(0xFF00, 0xFF7F, nameof(IoRegisters));
         }
+        
+        InitializeMemoryMap();
 
-        WriteByte(0xFF00, 0xCF);
+        WriteByte(Constants.JoypadRegister, 0xCF);
+        
         WriteByte(0xFF02, 0x7E);
         WriteByte(0xFF04, 0xAB);//18?
         WriteByte(0xFF07, 0xF8);
@@ -65,7 +75,7 @@ public class MemoryController
         WriteByte(0xFF25, 0xF3);
         WriteByte(0xFF26, 0xF1);
         WriteByte(0xFF40, 0x91);
-        WriteByte(0xFF41, 0x81);
+        WriteByte(0xFF41, 0x01);
         WriteByte(0xFF44, 0x90);
         WriteByte(0xFF47, 0xFC);
         WriteByte(0xFF4D, 0xFF); //TODO: Implement the double speed switch
@@ -90,24 +100,98 @@ public class MemoryController
 
     public byte ReadByte(ushort address)
     {
-        var memoryBank = FindMemoryBank(ref address);
+        if (address == Constants.IERegister)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("ReadByte returning cached value of InterruptEnableRegister: {value:X}", _interruptEnableRegister);
+            
+            return _interruptEnableRegister;
+        }
+
+        if (address == Constants.IFRegister)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("ReadByte returning cached value of InterruptFlagRegister: {value:X}", _interruptFlagRegister);
+
+            return _interruptFlagRegister;
+        }
+
+        if (address == Constants.LCDControlRegister)
+        {
+            if(_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("ReadByte returning cached value of LCDControlRegister: {value:X}", _lcdcRegister);
+            
+            return _lcdcRegister;
+        }
+        
+        if(address == 0xFF00)
+        {
+            if(_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("ReadByte returning cached value of LCDControlRegister: {value:X}", _lcdcRegister);
+
+            return _joypadRegister;
+        }
+        
+        var memoryBank = _memoryMap[address];
+        
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Reading byte from memory address: {address:X} located in {memoryBank.Name}", address,
                 memoryBank.Name);
         
-        if(address == 0xFF00)
-        {
-            return 0b1101_0110;
-        }
         return memoryBank.ReadByte(ref address);
     }
 
     public void WriteByte(ushort address, byte value)
     {
+        if (address == Constants.IERegister)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("WriteByte refreshing InterruptEnable cache with value: {value:X}", value);
+
+            _interruptEnableRegister = value;
+        }
+        
+        if (address == Constants.IFRegister)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("WriteByte refreshing InterruptFlag cache with value: {value:X}", value);
+
+            _interruptFlagRegister = value;
+        }
+
+        if (address == Constants.LCDControlRegister)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("WriteByte refreshing LCDControlRegister cache with value: {value:X}", value);
+            
+            _lcdcRegister = value;
+        }
+        
+        if(address == 0xFF00)
+        {
+            if (_logger.IsEnabled(LogLevel.Debug))
+                _logger.LogDebug("WriteByte intercepted JoypadRegister write with value: {value:X}", value);
+            
+            if((value & 0xF0) == (_joypadRegister & 0xF0))
+                return;
+            
+            //Dpad selected
+            if (!value.IsBitSet(4))
+            {
+                _joypadRegister = (byte)(value & 0xF0 | (byte)(DpadStates & 0x0F));
+            }
+            //Buttons selected
+            else if (!value.IsBitSet(5))
+            {
+                _joypadRegister = (byte)(value & 0xF0 | (byte)(ButtonStates & 0x0F));
+            }
+        }
+        
         if (address <= 0x7FFF)
         {
             return; //TODO: MBC0 behavior only
         }
+        
         if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
         {
             Console.WriteLine($"SB WRITE: {value:X2}");
@@ -123,7 +207,7 @@ public class MemoryController
             }
         }
 
-        var memoryBank = FindMemoryBank(ref address);
+        var memoryBank = _memoryMap[address];
 
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}",
@@ -134,71 +218,60 @@ public class MemoryController
 
     public void WriteWord(ushort address, ushort value)
     {
-        var memoryBank = FindMemoryBank(ref address);
-
-        if (_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("Writing word {value:X} to memory address: {address:X} located in {memoryBank.Name}",
-                value, address, memoryBank.Name);
-
         WriteByte(address, (byte)(value & 0xFF));
         WriteByte(address.Add(1), (byte)(value >> 8));
     }
 
     public ushort ReadWord(ushort address)
     {
-        var memoryBank = FindMemoryBank(ref address);
-
-        if (_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("Reading word from memory address: {address:X} located in {memoryBank.Name}", address,
-                memoryBank.Name);
-
         return (ushort)(ReadByte(address) | (ReadByte(address.Add(1)) << 8));
     }
 
-    public void IncrementByte(ushort memoryAddress)
+    public void IncrementByte(ushort address)
     {
-        var memoryBank = FindMemoryBank(ref memoryAddress);
+        var memoryBank = _memoryMap[address];
 
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Incrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}",
-                memoryAddress, memoryBank.Name);
+                address, memoryBank.Name);
 
-        memoryBank.IncrementByte(ref memoryAddress);
+        memoryBank.IncrementByte(ref address);
     }
 
-    public void DecrementByte(ushort memoryAddress)
+    public void DecrementByte(ushort address)
     {
-        var memoryBank = FindMemoryBank(ref memoryAddress);
+        var memoryBank = _memoryMap[address];
 
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Decrementing byte at memory address: {memoryAddress:X} located in {memoryBank.Name}",
-                memoryAddress, memoryBank.Name);
+                address, memoryBank.Name);
 
-        memoryBank.DecrementByte(ref memoryAddress);
+        memoryBank.DecrementByte(ref address);
     }
-
-    private FixedBank FindMemoryBank(ref ushort address)
+    
+    private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
+    
+    private void InitializeMemoryMap()
     {
-        return address switch
+        for (int i = 0; i <= 0xFFFF; i++)
         {
-            _ when address >= RomBank0.StartAddress && address <= RomBank0.EndAddress => RomBank0,
-            _ when address >= RomBankNn.StartAddress && address <= RomBankNn.EndAddress => RomBankNn,
-            _ when address >= Vram.StartAddress && address <= Vram.EndAddress => Vram,
-            _ when address >= ExternalRam.StartAddress && address <= ExternalRam.EndAddress => ExternalRam,
-            _ when address >= Wram0.StartAddress && address <= Wram0.EndAddress => Wram0,
-            _ when address >= Wram1.StartAddress && address <= Wram1.EndAddress => Wram1,
-            _ when address >= 0xC000 && address <= 0xCFFF => Wram0, //Echo of Wram0
-            _ when address >= 0xD000 && address <= 0xFDFF => Wram1, //Echo of Wram1
-            // _ when address >= EchoRam.StartAddress && address <= EchoRam.EndAddress => EchoRam,
-            _ when address >= Oam.StartAddress && address <= Oam.EndAddress => Oam,
-            _ when address >= NotUsable.StartAddress && address <= NotUsable.EndAddress => NotUsable,
-            _ when address >= IoRegisters.StartAddress && address <= IoRegisters.EndAddress => IoRegisters,
-            _ when address >= HRam.StartAddress && address <= HRam.EndAddress => HRam,
-            _ when address >= InterruptEnableRegister.StartAddress && address <= InterruptEnableRegister.EndAddress =>
-                InterruptEnableRegister,
-            _ => throw new ArgumentOutOfRangeException(
-                nameof(address),
-                $"Could not find a memory bank for the given address: {address:X}")
-        };
+            _memoryMap[i] = i switch
+            {
+                <= BankAddress.RomBank0End => RomBank0,
+                <= BankAddress.RomBankNnEnd => RomBankNn,
+                <= BankAddress.VramEnd => Vram,
+                <= BankAddress.ExternalRamEnd => ExternalRam,
+                <= BankAddress.Wram0End => Wram0,
+                <= BankAddress.Wram1End => Wram1,
+                <= 0xEFFF => Wram0, //Echo of Wram0
+                <= 0xFDFF => Wram1, //Echo of Wram1
+                // _ when address >= EchoRamStartAddress && address <= EchoRam.EndAddress => EchoRam,
+                <= BankAddress.OamEnd => Oam,
+                <= BankAddress.NotUsableEnd => NotUsable,
+                <= BankAddress.IoRegistersEnd => IoRegisters,
+                <= BankAddress.HRamEnd => HRam,
+                _ => InterruptEnableRegister
+            };
+        }
     }
 }
