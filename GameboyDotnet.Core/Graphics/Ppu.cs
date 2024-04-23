@@ -1,4 +1,5 @@
-﻿using GameboyDotnet.Extensions;
+﻿using System.Runtime.CompilerServices;
+using GameboyDotnet.Extensions;
 using GameboyDotnet.Graphics.Registers.LcdControl;
 using GameboyDotnet.Memory;
 using GameboyDotnet.PPU;
@@ -33,6 +34,9 @@ public class Ppu(MemoryController memoryController)
 
     public void PushPpuCycles(byte cpuCycles)
     {
+        if(!Lcd.Lcdc.IsBitSet(7))
+            return;
+        
         var previousPpuMode = (PpuMode)(Lcd.Stat & 0b11);
         var previousLy = Lcd.Ly;
         _cyclesCounter += cpuCycles;
@@ -70,7 +74,7 @@ public class Ppu(MemoryController memoryController)
 
                 break;
         }
-
+        
         if (previousLy != _ly)
         {
             Lcd.UpdateLy(_ly);
@@ -98,8 +102,8 @@ public class Ppu(MemoryController memoryController)
     private void RenderObjects()
     {
         var objectsCount = 0;
-        for (ushort oamAddress = (ushort)memoryController.Oam.StartAddress;
-             oamAddress <= memoryController.Oam.EndAddress;
+        for (ushort oamAddress = BankAddress.OamStart;
+             oamAddress <= BankAddress.OamEnd;
              oamAddress += 4)
         {
             var y = memoryController.ReadByte(oamAddress) - 16;
@@ -158,6 +162,7 @@ public class Ppu(MemoryController memoryController)
         var wy = Lcd.Wy;
         var scx = Lcd.Scx;
         var scy = Lcd.Scy;
+        var palette = Lcd.Bgp;
 
         bool isWindow = Lcd.WindowDisplay is WindowDisplay.Enabled && wy <= _ly;
 
@@ -197,107 +202,14 @@ public class Ppu(MemoryController memoryController)
 
 
             //Get color from BGP palette
-            var palette = Lcd.Bgp;
             var paletteColor = GetPaletteColorByPixelColor(ref palette, ref pixelColor);
 
             Lcd.Buffer[pixel, _ly] = paletteColor;
-        }
-    }
-
-    private void RenderBackground()
-    {
-        var scx = Lcd.Scx;
-        var scy = Lcd.Scy;
-        var yPos = _ly.Add(scy);
-        var tileLineIndex = (byte)((yPos & 7) * 2);
-        var tileRowIndex = (ushort)(yPos / 8 * 32);
-        ushort tileData = 0;
-        var baseTileMapArea = (ushort)Lcd.BgTileMapArea;
-
-        for (byte pixel = 0; pixel < Lcd.ScreenWidth; pixel++)
-        {
-            var xPos = pixel.Add(scx);
-
-            if ((pixel & 0x7) == 0)
-            {
-                var tileColumnIndex = (ushort)(xPos / 8);
-                var tileAddress = (ushort)(baseTileMapArea + tileRowIndex + tileLineIndex +tileColumnIndex);
-
-                var tileNumber = Lcd.TileDataSelect switch
-                {
-                    BgWindowTileDataArea.Unsigned8000
-                        => (ushort)(0x8000 + memoryController.ReadByte(tileAddress) * 16),
-                    BgWindowTileDataArea.Signed8800
-                        => (ushort)(0x8800 + ((sbyte)memoryController.ReadByte(tileAddress) + 128) * 16),
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-
-                tileData = memoryController.ReadWord((ushort)(tileNumber + tileLineIndex));
-            }
-
-            var bitIndex = 7 - (xPos & 0b111);
-            var pixelColor = (ushort)((tileData.GetBit(bitIndex + 8) << 1) |
-                                      tileData.GetBit(bitIndex));
-
-            //Get color from BGP palette
-            var palette = Lcd.Bgp;
-            var paletteColor = GetPaletteColorByPixelColor(ref palette, ref pixelColor);
-
-            Lcd.Buffer[pixel, _ly] = paletteColor;
-        }
-    }
-
-    private void RenderWindow()
-    {
-        var wx = Lcd.Wx - 7;
-        var wy = Lcd.Wy;
-        var baseTileMapArea = (ushort)Lcd.WindowTileMapArea;
-
-        var yPos = _ly.Subtract(wy);
-        var tileLineIndex = (byte)((yPos & 7) * 2);
-        var tileRowIndex = (ushort)(yPos / 8 * 32);
-        ushort tileData = 0;
-
-        bool isWindowEnabled
-            = Lcd.WindowDisplay is WindowDisplay.Enabled &&
-              wy <= _ly &&
-              wx >= 0;
-
-        if (isWindowEnabled)
-        {
-            for (byte pixel = 0; pixel < Lcd.ScreenWidth; pixel++)
-            {
-                var xPos = pixel - wx;
-                
-                    var tileColumnIndex = (ushort)(xPos / 8);
-                    var tileAddress = (ushort)(baseTileMapArea + tileRowIndex + tileLineIndex + tileColumnIndex);
-
-                    var tileNumber = Lcd.TileDataSelect switch
-                    {
-                        BgWindowTileDataArea.Unsigned8000
-                            => (ushort)(0x8000 + memoryController.ReadByte(tileAddress) * 16),
-                        BgWindowTileDataArea.Signed8800
-                            => (ushort)(0x8800 + ((sbyte)memoryController.ReadByte(tileAddress) + 128) * 16),
-                        _ => throw new ArgumentOutOfRangeException()
-                    };
-
-                    tileData = memoryController.ReadWord((ushort)(tileNumber + tileLineIndex));
-
-                var bitIndex = 7 - (xPos & 0b111);
-                var pixelColor = (ushort)((tileData.GetBit(bitIndex + 8) << 1) |
-                                          tileData.GetBit(bitIndex));
-
-                //Get color from BGP palette
-                var palette = Lcd.Bgp;
-                var paletteColor = GetPaletteColorByPixelColor(ref palette, ref pixelColor);
-
-                Lcd.Buffer[pixel, _ly] = paletteColor;
-            }
         }
     }
     
-
-    private byte GetPaletteColorByPixelColor(ref byte palette, ref ushort pixelColor)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static byte GetPaletteColorByPixelColor(ref byte palette, ref ushort pixelColor)
     {
         return pixelColor switch
         {
@@ -309,6 +221,7 @@ public class Ppu(MemoryController memoryController)
         };
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private (bool objToBackgroundPriority, bool yFlipped, bool xFlipped, byte palette) ExtractObjectAttributes(
         ref ushort oamAddress)
     {

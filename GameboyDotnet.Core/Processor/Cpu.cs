@@ -24,13 +24,13 @@ public partial class Cpu
 
     public byte ExecuteNextOperation()
     {
-        HandleInterrupt();
-        
-        if(IsHalted)
+        bool interruptHandled = HandleInterrupt();
+
+        if (IsHalted)
         {
             return 1;
         }
-        
+
         var opCode = MemoryController.ReadByte(Register.PC);
         var operationBlock = (opCode & 0b11000000) >> 6;
 
@@ -50,40 +50,38 @@ public partial class Cpu
         }
 
         Register.PC += operationSize.instructionBytesLength;
-        
-        return operationSize.durationTStates;
+
+        return (byte)(operationSize.durationTStates + (interruptHandled ? 5 : 0));
     }
 
-    private void HandleInterrupt()
+    private bool HandleInterrupt()
     {
         var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
         var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
         var interrupt = (byte)(interruptFlags & interruptEnable);
-        
-        if(interrupt == 0)
-            return;
+
+        if (interrupt == 0 || !Register.InterruptsMasterEnabled)
+            return false;
 
         IsHalted = false;
-        if (Register.InterruptsMasterEnabled)
+        int interruptIndex = BitOperations.TrailingZeroCount(interrupt);
+        Register.InterruptsMasterEnabled = false;
+        MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
+        PushStack(Register.PC);
+
+        Register.PC = (1 << interruptIndex) switch
         {
-            int interruptIndex = BitOperations.TrailingZeroCount(interrupt);
-            Register.InterruptsMasterEnabled = false;
-            MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
-            PushStack(Register.PC);
-            
-            Register.PC = (1 << interruptIndex)  switch
-            {
-                0x01 => 0x0040,
-                0x02 => 0x0048,
-                0x04 => 0x0050,
-                0x08 => 0x0058,
-                0x10 => 0x0060,
-                _ => throw new ArgumentOutOfRangeException(nameof(interrupt), interrupt, "Invalid interrupt")
-            };
-        }
+            0x01 => 0x0040,
+            0x02 => 0x0048,
+            0x04 => 0x0050,
+            0x08 => 0x0058,
+            0x10 => 0x0060,
+            _ => throw new ArgumentOutOfRangeException(nameof(interrupt), interrupt, "Invalid interrupt")
+        };
+
+        return true;
     }
 
-    
 
     // private void LogTestOutput(StreamWriter writer)
     // {
@@ -108,7 +106,9 @@ public partial class Cpu
 
     private bool CheckCondition(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - Checking condition flag", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - Checking condition flag", opCode);
+        
         return opCode.GetCondition() switch
         {
             0b00 => !Register.ZeroFlag,

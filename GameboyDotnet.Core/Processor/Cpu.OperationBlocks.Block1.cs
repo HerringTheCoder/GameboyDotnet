@@ -9,7 +9,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) Halt()
     {
-        _logger.LogDebug("HALT - Halt CPU until an interrupt occurs");
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("HALT - Halt CPU until an interrupt occurs");
         //TODO: Review if this is sufficient way to handle HALT
         if (!Register.InterruptsMasterEnabled)
         {
@@ -30,7 +31,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadSourceR8IntoDestinationR8(ref byte opCode, byte destinationR8, byte sourceR8)
     {
-        _logger.LogDebug("{opcode:X2} - LD {destinationR8:X2}, {sourceR8:X2}", opCode, destinationR8, sourceR8);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - LD {destinationR8:X2}, {sourceR8:X2}", opCode, destinationR8, sourceR8);
+        
         if (destinationR8 == Constants.R8_HL_Index && sourceR8 == Constants.R8_HL_Index)
         {
             return Halt();

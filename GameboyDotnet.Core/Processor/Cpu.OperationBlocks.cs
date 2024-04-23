@@ -117,8 +117,8 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) ExecuteBlockCB(ref byte opCode)
     {
         var subOpCode = MemoryController.ReadByte(Register.PC.Add(1));
-        _logger.LogDebug("{opCode:X2} - Executing $CB prefix instruction with subOpCode: {SubOpCode:X2}", opCode,
-            subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Executing $CB prefix instruction with subOpCode: {SubOpCode:X2}", opCode, subOpCode);
         var r8 = subOpCode.GetSourceR8();
         var bit3Index = subOpCode.GetDestinationR8();
         var subOpCodeMainIndex = (subOpCode & 0b11000000) >> 6;

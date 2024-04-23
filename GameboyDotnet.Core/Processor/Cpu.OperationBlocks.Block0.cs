@@ -20,7 +20,8 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) LoadImmediate16BitIntoR16(ref byte opCode,
         byte r16)
     {
-        _logger.LogDebug("{opCode:X2} - Loading immediate 16 bit value into register, r16 value: {r16} ", opCode, r16);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Loading immediate 16 bit value into register, r16 value: {r16} ", opCode, r16);
         var immediate16Bit = MemoryController.ReadWord(Register.PC.Add(1));
         Register.SetRegisterByR16(r16, immediate16Bit);
         return (3, 12);
@@ -31,7 +32,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadRegisterAIntoR16Mem(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16mem value: {r16mem} ", opCode, r16mem);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Loading register A into memory, r16mem value: {r16mem} ", opCode, r16mem);
         MemoryController.WriteByte(address: Register.GetRegisterValueByR16Mem(r16mem), Register.A);
         return (1, 8);
     }
@@ -41,7 +43,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadR16MemIntoRegisterA(ref byte opCode, byte r16mem)
     {
-        _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16mem);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Loading memory into register A, r16mem value: {r16mem} ", opCode, r16mem);
         Register.A = MemoryController.ReadByte(address: Register.GetRegisterValueByR16Mem(r16mem));
         return (1, 8);
     }
@@ -61,7 +64,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) IncrementR16(ref byte opCode, byte r16)
     {
-        _logger.LogDebug("{opCode:X2} - Incrementing 16 bit register, r16 value: {r16} ", opCode, r16);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Incrementing 16 bit register, r16 value: {r16} ", opCode, r16);
         Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Add(1));
         return (1, 8);
     }
@@ -71,7 +75,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecrementR16(ref byte opCode, byte r16)
     {
-        _logger.LogDebug("{opCode:X2} - Decrementing 16 bit register, r16 value: {r16} ", opCode, r16);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Decrementing 16 bit register, r16 value: {r16} ", opCode, r16);
         Register.SetRegisterByR16(r16, Register.GetRegisterValueByR16(r16).Subtract(1));
         return (1, 8);
     }
@@ -81,7 +86,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) AddR16ToHL(ref byte opCode, byte r16)
     {
-        _logger.LogDebug("{opCode:X2} - Adding 16 bit register to HL, r16 value: {r16} ", opCode, r16);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Adding 16 bit register to HL, r16 value: {r16} ", opCode, r16);
         Set16BitAddCarryFlags(Register.HL, Register.GetRegisterValueByR16(r16));
         Register.HL += Register.GetRegisterValueByR16(r16);
         return (1, 8);
@@ -92,7 +98,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) IncrementR8(ref byte opCode, byte r8)
     {
-        _logger.LogDebug("{opCode:X2} - Incrementing 8 bit register, r8 value: {r8} ", opCode, r8);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Incrementing 8 bit register, r8 value: {r8} ", opCode, r8);
         //6 = [HL], which requires a direct memory read and write
         if (r8 == Constants.R8_HL_Index)
         {
@@ -113,7 +120,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecrementR8(ref byte opCode, byte r8)
     {
-        _logger.LogDebug("{opCode:X2} - Decrementing 8 bit register, r8 value: {r8} ", opCode, r8);
+        if(_logger.IsEnabled(LogLevel.Debug)) 
+            _logger.LogDebug("{opCode:X2} - Decrementing 8 bit register, r8 value: {r8} ", opCode, r8);
+        
         if (r8 == Constants.R8_HL_Index)
         {
             var memoryAddress = Register.HL;
@@ -133,7 +142,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) LoadImmediate8BitIntoR8(ref byte opCode, byte r8)
     {
-        _logger.LogDebug("{opCode:X2} - Loading immediate 8 bit value into register, r8 value: {r8} ", opCode, r8);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Loading immediate 8 bit value into register, r8 value: {r8} ", opCode, r8);
         var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
         if (r8 == Constants.R8_HL_Index)
         {
@@ -275,7 +285,9 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) JumpRelativeConditionalImmediate8bit(
         ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit with condition", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit with condition", opCode);
+        
         if (CheckCondition(ref opCode))
             return JumpRelativeImmediate8bit(ref opCode);
 

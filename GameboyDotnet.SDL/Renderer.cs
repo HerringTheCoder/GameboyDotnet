@@ -18,7 +18,7 @@ public static class Renderer
     private static readonly SDL_Color DarkGray = new() { r = 85, g = 85, b = 85, a = 255 };
     private static readonly SDL_Color Black = new() { r = 0, g = 0, b = 0, a = 255 };
     
-    public static void RenderStates(nint renderer, Lcd lcd, nint window)
+    public static void RenderStates(ref nint renderer, Lcd lcd, ref nint window)
     {
         try
         {

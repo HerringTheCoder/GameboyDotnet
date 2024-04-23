@@ -6,7 +6,7 @@ public class FixedBank : IMemory
 {
     public int StartAddress { get; init; } = 0;
     public int EndAddress { get; init; } = 0;
-    public byte[] MemorySpace { get; init; }
+    public byte[] MemorySpace;
     public string Name { get; init; }
     
     public FixedBank(int startAddress, int endAddress, string name)

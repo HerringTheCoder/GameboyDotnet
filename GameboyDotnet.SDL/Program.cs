@@ -26,6 +26,8 @@ gameboy.LoadProgram(stream);
 
 var cts = new CancellationTokenSource();
 bool running = true;
+int framesRequested = 0;
+
 gameboy.ExceptionOccured += (_, _) =>
 {
     cts.Cancel();
@@ -33,7 +35,7 @@ gameboy.ExceptionOccured += (_, _) =>
 };
 gameboy.DisplayUpdated += (_, _) =>
 {
-    Renderer.RenderStates(renderer, gameboy.Ppu.Lcd, window);
+    Interlocked.Increment(ref framesRequested);
 };
 
 Task.Run(() => gameboy.RunAsync(cts.Token));
@@ -41,25 +43,30 @@ Task.Run(() => gameboy.RunAsync(cts.Token));
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)
 {
-    while (SDL_PollEvent(out SDL_Event e) == 1)
+    if (SDL_PollEvent(out SDL_Event e) == 1)
     {
         switch (e.type)
         {
+            case SDL_EventType.SDL_KEYDOWN:
+                if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyPressed))
+                    gameboy.PressButton(keyPressed);
+                break;
+            case SDL_EventType.SDL_KEYUP:
+                if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyReleased))
+                    gameboy.ReleaseButton(keyReleased);
+                break;
             case SDL_EventType.SDL_QUIT:
                 cts.Cancel();
                 running = false;
                 Renderer.Destroy(renderer, window);
                 break;
-            case SDL_EventType.SDL_KEYDOWN:
-                gameboy.PressedKeyValue =
-                    keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var result)
-                        ? result
-                        : null;
-                break;
-            case SDL_EventType.SDL_KEYUP:
-                gameboy.PressedKeyValue = null;
-                break;
         }
+    }
+
+    if (framesRequested > 0)
+    {
+        Interlocked.Decrement(ref framesRequested);
+        Renderer.RenderStates(ref renderer, gameboy.Ppu.Lcd, ref window);
     }
 }
 

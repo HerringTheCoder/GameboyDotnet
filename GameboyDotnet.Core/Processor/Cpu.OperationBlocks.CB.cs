@@ -12,7 +12,8 @@ public partial class Cpu
     /// <param name="r8"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftR8(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - RL r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - RL r8", opCode);
 
         byte RotateLeftCb(ref byte registerValue) //TODO: Extract this and other local functions
         {
@@ -43,7 +44,8 @@ public partial class Cpu
     /// <param name="r8"></param>
     public (byte instructionLength, byte Tstates) RotateRightR8(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - RR r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - RR r8", opCode);
         
         byte RotateRightCb(ref byte registerValue)
         {
@@ -74,7 +76,8 @@ public partial class Cpu
     /// <param name="r8"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftR8ThroughCarry(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - RLC r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - RLC r8", opCode);
 
         byte RotateLeftThroughCarryCb(ref byte registerValue) //TODO: Extract this and RLC, RR, RRC
         {
@@ -104,7 +107,8 @@ public partial class Cpu
     /// <param name="r8"></param>
     public (byte instructionLength, byte Tstates) RotateRightR8ThroughCarry(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - RRC r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - RRC r8", opCode);
         
         byte RotateRightThroughCarryCb(ref byte registerValue)
         {
@@ -135,7 +139,8 @@ public partial class Cpu
     /// <returns></returns>
     private (byte instructionBytesLength, byte durationTStates) ShiftLeftArithmeticallyR8(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - SLA r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - SLA r8", opCode);
 
         byte ShiftLeft(ref byte registerValue)
         {
@@ -164,7 +169,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) ShiftRightArithmeticallyR8(ref byte opCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - SLA r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - SLA r8", opCode);
 
         byte ShiftRight(ref byte registerValue)
         {
@@ -195,7 +201,8 @@ public partial class Cpu
     /// <returns></returns>
     private (byte instructionBytesLength, byte durationTStates) SwapR8Nibbles(ref byte subOpCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - SWAP r8", subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - SWAP r8", subOpCode);
 
         byte SwapNibbles(ref byte registerValue)
         {
@@ -222,7 +229,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) ShiftRightLogicallyR8(ref byte subOpCode, ref byte r8)
     {
-        _logger.LogDebug("CB{OpCode:X2} - SRL r8", subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{OpCode:X2} - SRL r8", subOpCode);
 
         byte ShiftRightLogically(ref byte registerValue)
         {
@@ -250,7 +258,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) TestBit3IndexInR8(ref byte subOpCode, ref byte bit3Index, ref byte r8)
     {
-        _logger.LogDebug("CB{SubOpCode:X2} - BIT u3 r8", subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{SubOpCode:X2} - BIT u3 r8", subOpCode);
         (Register.NegativeFlag, Register.HalfCarryFlag) = (false, true);
         var mask = 0b0000_0001 << bit3Index; //Set tested bit
         if (r8 == Constants.R8_HL_Index)
@@ -270,7 +279,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) ResetBit3IndexInR8(ref byte subOpCode, ref byte bit3Index, ref byte r8)
     {
-        _logger.LogDebug("CB{SubOpCode:X2} - RES u3 r8", subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{SubOpCode:X2} - RES u3 r8", subOpCode);
         var mask = ~(1 << bit3Index);
         if (r8 == Constants.R8_HL_Index)
         {
@@ -289,7 +299,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) SetBit3IndexInR8(ref byte subOpCode, ref byte bit3Index, ref byte r8)
     {
-        _logger.LogDebug("CB{SubOpCode:X2} - RES u3 r8", subOpCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("CB{SubOpCode:X2} - RES u3 r8", subOpCode);
         var mask = 1 << bit3Index;
         if (r8 == Constants.R8_HL_Index)
         {
