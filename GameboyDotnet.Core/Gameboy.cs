@@ -14,10 +14,10 @@ public partial class Gameboy
     public MainTimer TimaTimer { get; } = new();
     public DividerTimer DivTimer { get; } = new();
 
-    public Gameboy(ILogger<Gameboy> logger, bool isTestEnvironment = false)
+    public Gameboy(ILogger<Gameboy> logger)
     {
         _logger = logger;
-        Cpu = new Cpu(logger, isTestEnvironment);
+        Cpu = new Cpu(logger);
         Ppu = new Ppu(Cpu.MemoryController);
     }
 
@@ -54,7 +54,7 @@ public partial class Gameboy
                 currentCycles -= cyclesPerFrame;
                 DisplayUpdated.Invoke(this, EventArgs.Empty);
 
-                var endTime = Stopwatch.GetTimestamp();
+                // var endTime = Stopwatch.GetTimestamp();
                 // while (Stopwatch.GetTimestamp() < targetTime)
                 // {
                 //     //Wait in a tight loop for until target time is reached

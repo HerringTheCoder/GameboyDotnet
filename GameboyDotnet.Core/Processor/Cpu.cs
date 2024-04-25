@@ -13,19 +13,16 @@ public partial class Cpu
     public bool IsHalted { get; set; }
     private readonly ILogger<Gameboy> _logger;
 
-    private readonly bool _isTestEnvironment;
-
-    public Cpu(ILogger<Gameboy> logger, bool isTestEnvironment)
+    public Cpu(ILogger<Gameboy> logger)
     {
         _logger = logger;
-        _isTestEnvironment = isTestEnvironment;
-        MemoryController = new MemoryController(logger, isTestEnvironment);
+        MemoryController = new MemoryController(logger);
     }
 
     public byte ExecuteNextOperation()
     {
         bool interruptHandled = HandleInterrupt();
-
+        
         if (IsHalted)
         {
             return 1;
@@ -50,7 +47,7 @@ public partial class Cpu
         }
 
         Register.PC += operationSize.instructionBytesLength;
-
+        
         return (byte)(operationSize.durationTStates + (interruptHandled ? 5 : 0));
     }
 
@@ -60,7 +57,7 @@ public partial class Cpu
         var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
         var interrupt = (byte)(interruptFlags & interruptEnable);
 
-        if (interrupt == 0 || !Register.InterruptsMasterEnabled)
+        if (interrupt == 0 || !Register.InterruptsMasterEnabled) //TODO: https://gbdev.io/pandocs/halt.html
             return false;
 
         IsHalted = false;

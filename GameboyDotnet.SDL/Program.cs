@@ -1,5 +1,4 @@
-﻿using Chip8Emu.SDL;
-using GameboyDotnet;
+﻿using GameboyDotnet;
 using GameboyDotnet.Common;
 using GameboyDotnet.SDL;
 using Microsoft.Extensions.Configuration;
