@@ -9,10 +9,10 @@ Checklist:
 -  ~~Implementing timers and interrupt handling~~
 -  ~~Implementing PPU~~ (Basic PPU is implemented now, but is not acid-compliant yet)
 -  ~~Joypad with configurable keymap~~
--  OAM Transfer
--  Running first MBC0 titles
--  RTC
+-  ~~OAM DMA Transfer~~
+-  ~~Running first MBC0 titles~~ (Tetris is playable)
 -  Extra Mappers (MBC1, MBC3 and MBC5 at the very least)
+-  RTC
 -  Emulating sound
 -  GB->GBC modes switching
 -  Adding GBC features
