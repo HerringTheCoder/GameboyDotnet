@@ -88,6 +88,8 @@ public static class Renderer
             w: emulatorSettings.WindowWidth,
             h: emulatorSettings.WindowHeight,
             SDL_WindowFlags.SDL_WINDOW_SHOWN
+            | SDL_WindowFlags.SDL_WINDOW_RESIZABLE
+            | SDL_WindowFlags.SDL_WINDOW_OPENGL
             );
 
         if (window == IntPtr.Zero)
@@ -98,7 +100,6 @@ public static class Renderer
         var renderer = SDL_CreateRenderer(window,
             -1,
             SDL_RendererFlags.SDL_RENDERER_ACCELERATED
-            // | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
             );
 
         if (renderer == IntPtr.Zero)

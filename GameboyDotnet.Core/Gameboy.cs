@@ -27,8 +27,7 @@ public partial class Gameboy
         _logger.LogInformation("Program loaded successfully");
     }
 
-    public Task RunAsync(
-        CancellationToken ctsToken)
+    public Task RunAsync(bool frameLimitEnabled, CancellationToken ctsToken)
     {
         var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks;
         
@@ -53,12 +52,14 @@ public partial class Gameboy
 
                 currentCycles -= cyclesPerFrame;
                 DisplayUpdated.Invoke(this, EventArgs.Empty);
-
-                // var endTime = Stopwatch.GetTimestamp();
-                // while (Stopwatch.GetTimestamp() < targetTime)
-                // {
-                //     //Wait in a tight loop for until target time is reached
-                // }
+                
+                if(frameLimitEnabled)
+                {
+                    while (Stopwatch.GetTimestamp() < targetTime)
+                    {
+                        //Wait in a tight loop for until target time is reached
+                    }
+                }
             }
             catch (Exception ex)
             {

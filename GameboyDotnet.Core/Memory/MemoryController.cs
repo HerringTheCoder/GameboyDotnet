@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory.BuildingBlocks;
+using GameboyDotnet.Memory.Mbc;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet.Memory;
@@ -8,10 +9,8 @@ namespace GameboyDotnet.Memory;
 public class MemoryController
 {
     private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
-    public readonly FixedBank RomBank0 = new(BankAddress.RomBank0Start, BankAddress.RomBank0End, nameof(RomBank0));
-    public SwitchableBank RomBankNn = new(BankAddress.RomBankNnStart, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 512);
+    public SwitchableBank RomBankNn;
     public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
-    public SwitchableBank ExternalRam = new(BankAddress.ExternalRamStart, BankAddress.ExternalRamEnd, nameof(ExternalRam), bankSizeInBytes: 8192, numberOfBanks: 512);
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
     public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
     // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
@@ -65,15 +64,22 @@ public class MemoryController
         int bytesRead;
         int currentPosition = 0;
         //TODO: Determine the size and mapper of the ROM, then setup and load the banks accordingly
+        RomBankNn = new Mbc0(BankAddress.RomBank0Start, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 2);
+        RomBankNn = new Mbc1(BankAddress.RomBank0Start, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 128);
+        InitializeMemoryMap();
 
-        while ((bytesRead = stream.Read(RomBank0.MemorySpace, 0, RomBank0.MemorySpace.Length - currentPosition)) > 0)
+        for (int i = 0; i < RomBankNn.NumberOfBanks; i++)
         {
-            currentPosition += bytesRead;
-        }
-
-        while ((bytesRead = stream.Read(RomBankNn.MemorySpace, 0, RomBankNn.MemorySpace.Length - currentPosition)) > 0)
-        {
-            currentPosition += bytesRead;
+            while ((bytesRead = stream.Read(
+                       buffer: RomBankNn.MemorySpace,
+                       offset: RomBankNn.BankSizeInBytes * i,
+                       count: RomBankNn.BankSizeInBytes*(i+1) - currentPosition)) > 0)
+            {
+                currentPosition += bytesRead;
+            }
+            
+            if(stream.Length == currentPosition)
+                break;
         }
     }
 
@@ -90,14 +96,9 @@ public class MemoryController
 
     public void WriteByte(ushort address, byte value)
     {
-        if (address <= 0x7FFF)
-        {
-            return; //TODO: MBC0 behavior only
-        }
-        
         if (address == Constants.DMARegister)
-        {
-           DmaTransfer(ref value);
+        { 
+            DmaTransfer(ref value);
         }
         
         if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
@@ -172,15 +173,13 @@ public class MemoryController
         {
             _memoryMap[i] = i switch
             {
-                <= BankAddress.RomBank0End => RomBank0,
                 <= BankAddress.RomBankNnEnd => RomBankNn,
                 <= BankAddress.VramEnd => Vram,
-                <= BankAddress.ExternalRamEnd => ExternalRam,
+                <= BankAddress.ExternalRamEnd => RomBankNn,
                 <= BankAddress.Wram0End => Wram0,
                 <= BankAddress.Wram1End => Wram1,
                 <= 0xEFFF => Wram0, //Echo of Wram0
                 <= 0xFDFF => Wram1, //Echo of Wram1
-                // _ when address >= EchoRamStartAddress && address <= EchoRam.EndAddress => EchoRam,
                 <= BankAddress.OamEnd => Oam,
                 <= BankAddress.NotUsableEnd => NotUsable,
                 <= BankAddress.IoRegistersEnd => IoRegisters,

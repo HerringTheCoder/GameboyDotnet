@@ -145,7 +145,7 @@ public class Ppu(MemoryController memoryController)
                 var paletteColor = GetPaletteColorByPixelColor(ref attributes.palette, ref pixelColor);
 
                 //Check if object should be rendered over background
-                if (paletteColor != 0 && (!attributes.objToBackgroundPriority || Lcd.Buffer[x + pixel, _ly] == 0))
+                if (!attributes.objToBackgroundPriority || Lcd.Buffer[x + pixel, _ly] == 0)
                     Lcd.Buffer[x + pixel, _ly] = paletteColor;
             }
 
