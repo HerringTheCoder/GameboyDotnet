@@ -37,7 +37,7 @@ gameboy.DisplayUpdated += (_, _) =>
     Interlocked.Increment(ref framesRequested);
 };
 
-Task.Run(() => gameboy.RunAsync(cts.Token));
+Task.Run(() => gameboy.RunAsync(emulatorSettings.FrameLimitEnabled, cts.Token));
 
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)
