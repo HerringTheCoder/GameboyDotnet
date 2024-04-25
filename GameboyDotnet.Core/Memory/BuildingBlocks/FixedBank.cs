@@ -1,8 +1,6 @@
-﻿using GameboyDotnet.Components.Memory.BuildingBlocks;
+﻿namespace GameboyDotnet.Memory.BuildingBlocks;
 
-namespace GameboyDotnet.Memory.BuildingBlocks;
-
-public class FixedBank : IMemory
+public class FixedBank
 {
     public int StartAddress { get; init; } = 0;
     public int EndAddress { get; init; } = 0;

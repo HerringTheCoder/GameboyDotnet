@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics;
-using GameboyDotnet.Components;
 using GameboyDotnet.Graphics;
 using Microsoft.Extensions.Logging;
 using SDL2;
@@ -88,7 +87,8 @@ public static class Renderer
             SDL_WINDOWPOS_UNDEFINED,
             w: emulatorSettings.WindowWidth,
             h: emulatorSettings.WindowHeight,
-            SDL_WindowFlags.SDL_WINDOW_SHOWN);
+            SDL_WindowFlags.SDL_WINDOW_SHOWN
+            );
 
         if (window == IntPtr.Zero)
         {
@@ -97,7 +97,7 @@ public static class Renderer
 
         var renderer = SDL_CreateRenderer(window,
             -1,
-            SDL_RendererFlags.SDL_RENDERER_ACCELERATED 
+            SDL_RendererFlags.SDL_RENDERER_ACCELERATED
             // | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC
             );
 

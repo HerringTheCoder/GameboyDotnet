@@ -1,5 +1,4 @@
 ﻿using GameboyDotnet.Extensions;
-using GameboyDotnet.Memory;
 
 namespace GameboyDotnet;
 
@@ -24,12 +23,12 @@ public partial class Gameboy
         
         if (!buttonState.IsBitSet(4))
         {
-            Cpu.MemoryController.DpadStates = (byte)(Cpu.MemoryController.DpadStates & buttonState);
+            Cpu.MemoryController.IoRegisters.DpadStates = (byte)(Cpu.MemoryController.IoRegisters.DpadStates & buttonState);
         }
         
         if(!buttonState.IsBitSet(5))
         {
-            Cpu.MemoryController.ButtonStates = (byte)(Cpu.MemoryController.ButtonStates & buttonState);
+            Cpu.MemoryController.IoRegisters.ButtonStates = (byte)(Cpu.MemoryController.IoRegisters.ButtonStates & buttonState);
         }
     }
     
@@ -39,19 +38,19 @@ public partial class Gameboy
         
         if (!buttonState.IsBitSet(4))
         {
-            Cpu.MemoryController.DpadStates = (byte)(Cpu.MemoryController.DpadStates | ~buttonState);
+            Cpu.MemoryController.IoRegisters.DpadStates |= (byte)(Cpu.MemoryController.IoRegisters.DpadStates | ~buttonState);
         }
         
         if(!buttonState.IsBitSet(5))
         {
-            Cpu.MemoryController.ButtonStates = (byte)(Cpu.MemoryController.ButtonStates | ~buttonState);
+            Cpu.MemoryController.IoRegisters.ButtonStates = (byte)(Cpu.MemoryController.IoRegisters.ButtonStates | ~buttonState);
         }
     }
     
     public void UpdateJoypadState()
     {
         
-        if((Cpu.MemoryController._joypadRegister & 0x0F) != 0x0F)
+        if((Cpu.MemoryController.ReadByte(Constants.JoypadRegister) & 0x0F) != 0x0F)
         {
             Cpu.MemoryController.WriteByte(
                 address: Constants.IERegister,

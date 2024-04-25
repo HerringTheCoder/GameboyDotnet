@@ -1,8 +1,6 @@
-﻿using GameboyDotnet.Components.Memory.BuildingBlocks;
+﻿namespace GameboyDotnet.Memory.BuildingBlocks;
 
-namespace GameboyDotnet.Memory.BuildingBlocks;
-
-public class SwitchableBank : FixedBank, ISwitchableMemory
+public class SwitchableBank : FixedBank
 {
     public int CurrentBank { get; set; }
     public int BankSizeInBytes { get; init; }

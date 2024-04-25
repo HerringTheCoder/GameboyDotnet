@@ -7,51 +7,30 @@ namespace GameboyDotnet.Memory;
 
 public class MemoryController
 {
+    private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
     public readonly FixedBank RomBank0 = new(BankAddress.RomBank0Start, BankAddress.RomBank0End, nameof(RomBank0));
-
-    public SwitchableBank RomBankNn = new(BankAddress.RomBankNnStart, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16 * 1024,
-        numberOfBanks: 512);
-
-    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8 * 1024, numberOfBanks: 2);
-
-    public SwitchableBank ExternalRam =
-        new(BankAddress.ExternalRamStart, BankAddress.ExternalRamEnd, nameof(ExternalRam), bankSizeInBytes: 8 * 1024, numberOfBanks: 512);
-
+    public SwitchableBank RomBankNn = new(BankAddress.RomBankNnStart, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 512);
+    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
+    public SwitchableBank ExternalRam = new(BankAddress.ExternalRamStart, BankAddress.ExternalRamEnd, nameof(ExternalRam), bankSizeInBytes: 8192, numberOfBanks: 512);
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
-
-    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4 * 1024,
-        numberOfBanks: 8);
-
+    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
     // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
     public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
     public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
-    public readonly FixedBank IoRegisters = new(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters));
+    public readonly IoBank IoRegisters;
     public readonly FixedBank HRam = new(BankAddress.HRamStart, BankAddress.HRamEnd, nameof(HRam));
     public readonly FixedBank InterruptEnableRegister = new(BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd, nameof(InterruptEnableRegister));
-    //Cache for read hotspots
-    private byte _interruptEnableRegister = 0x00;
-    private byte _interruptFlagRegister = 0x00;
-    private byte _lcdcRegister = 0x00;
-    internal byte _joypadRegister = 0xFF;
-    public byte DpadStates = 0xF;
-    public byte ButtonStates = 0xF;
 
     private StringBuilder _sb = new();
     private readonly ILogger<Gameboy> _logger;
 
-    public MemoryController(ILogger<Gameboy> logger, bool isTestEnvironment)
+    public MemoryController(ILogger<Gameboy> logger)
     {
         _logger = logger;
-
-        if (isTestEnvironment)
-        {
-            IoRegisters = new MockedFixedBank(0xFF00, 0xFF7F, nameof(IoRegisters));
-        }
-        
+        IoRegisters = new IoBank(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters), logger);
         InitializeMemoryMap();
 
         WriteByte(Constants.JoypadRegister, 0xCF);
-        
         WriteByte(0xFF02, 0x7E);
         WriteByte(0xFF04, 0xAB);//18?
         WriteByte(0xFF07, 0xF8);
@@ -78,7 +57,7 @@ public class MemoryController
         WriteByte(0xFF41, 0x01);
         WriteByte(0xFF44, 0x90);
         WriteByte(0xFF47, 0xFC);
-        WriteByte(0xFF4D, 0xFF); //TODO: Implement the double speed switch
+        WriteByte(0xFF4D, 0xFF); 
     }
 
     public void LoadProgram(Stream stream)
@@ -100,38 +79,6 @@ public class MemoryController
 
     public byte ReadByte(ushort address)
     {
-        if (address == Constants.IERegister)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("ReadByte returning cached value of InterruptEnableRegister: {value:X}", _interruptEnableRegister);
-            
-            return _interruptEnableRegister;
-        }
-
-        if (address == Constants.IFRegister)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("ReadByte returning cached value of InterruptFlagRegister: {value:X}", _interruptFlagRegister);
-
-            return _interruptFlagRegister;
-        }
-
-        if (address == Constants.LCDControlRegister)
-        {
-            if(_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("ReadByte returning cached value of LCDControlRegister: {value:X}", _lcdcRegister);
-            
-            return _lcdcRegister;
-        }
-        
-        if(address == 0xFF00)
-        {
-            if(_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("ReadByte returning cached value of LCDControlRegister: {value:X}", _lcdcRegister);
-
-            return _joypadRegister;
-        }
-        
         var memoryBank = _memoryMap[address];
         
         if (_logger.IsEnabled(LogLevel.Debug))
@@ -143,53 +90,14 @@ public class MemoryController
 
     public void WriteByte(ushort address, byte value)
     {
-        if (address == Constants.IERegister)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("WriteByte refreshing InterruptEnable cache with value: {value:X}", value);
-
-            _interruptEnableRegister = value;
-        }
-        
-        if (address == Constants.IFRegister)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("WriteByte refreshing InterruptFlag cache with value: {value:X}", value);
-
-            _interruptFlagRegister = value;
-        }
-
-        if (address == Constants.LCDControlRegister)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("WriteByte refreshing LCDControlRegister cache with value: {value:X}", value);
-            
-            _lcdcRegister = value;
-        }
-        
-        if(address == 0xFF00)
-        {
-            if (_logger.IsEnabled(LogLevel.Debug))
-                _logger.LogDebug("WriteByte intercepted JoypadRegister write with value: {value:X}", value);
-            
-            if((value & 0xF0) == (_joypadRegister & 0xF0))
-                return;
-            
-            //Dpad selected
-            if (!value.IsBitSet(4))
-            {
-                _joypadRegister = (byte)(value & 0xF0 | (byte)(DpadStates & 0x0F));
-            }
-            //Buttons selected
-            else if (!value.IsBitSet(5))
-            {
-                _joypadRegister = (byte)(value & 0xF0 | (byte)(ButtonStates & 0x0F));
-            }
-        }
-        
         if (address <= 0x7FFF)
         {
             return; //TODO: MBC0 behavior only
+        }
+        
+        if (address == Constants.DMARegister)
+        {
+           DmaTransfer(ref value);
         }
         
         if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
@@ -249,7 +157,14 @@ public class MemoryController
         memoryBank.DecrementByte(ref address);
     }
     
-    private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
+    private void DmaTransfer(ref byte value)
+    {
+        ushort sourceAddress = (ushort)(value << 8); //0xXX00
+        for (ushort i = 0xFE00; i <= 0xFE9F; i++)
+        {
+            WriteByte(i, ReadByte(sourceAddress++));
+        }
+    }
     
     private void InitializeMemoryMap()
     {
