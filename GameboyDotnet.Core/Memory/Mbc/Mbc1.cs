@@ -4,8 +4,8 @@ namespace GameboyDotnet.Memory.Mbc;
 
 //https://gbdev.io/pandocs/MBC1.html
 
-public class Mbc1(int startAddress, int endAddress, string name, int bankSizeInBytes, int numberOfBanks) 
-    : MemoryBankController(startAddress, endAddress, name, bankSizeInBytes, numberOfBanks)
+public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks) 
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
 {
     public override void WriteByte(ref ushort address, ref byte value)
     {
