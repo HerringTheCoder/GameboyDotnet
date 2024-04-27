@@ -11,8 +11,8 @@ Checklist:
 -  ~~Joypad with configurable keymap~~
 -  ~~OAM DMA Transfer~~
 -  ~~Running first MBC0 titles~~
--  Extra Mappers (~~MBC1~~, MBC3 and MBC5 at the very least)
--  RTC
+-  Extra Mappers (~~MBC1~~, ~~MBC3~~ and MBC5 at the very least)
+-  ~~RTC~~
 -  Emulating sound
 -  GB->GBC modes switching
 -  Adding GBC features
