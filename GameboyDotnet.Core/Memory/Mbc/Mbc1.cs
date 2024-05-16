@@ -1,34 +1,35 @@
-﻿using GameboyDotnet.Memory.BuildingBlocks;
+﻿using GameboyDotnet.Extensions;
+using GameboyDotnet.Memory.BuildingBlocks;
 
 namespace GameboyDotnet.Memory.Mbc;
 
 //https://gbdev.io/pandocs/MBC1.html
 
-public class Mbc1(int startAddress, int endAddress, string name, int bankSizeInBytes, int numberOfBanks) 
-    : MemoryBankController(startAddress, endAddress, name, bankSizeInBytes, numberOfBanks)
+public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks) 
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
 {
     public override void WriteByte(ref ushort address, ref byte value)
     {
         switch (address)
         {
-            case < 0x2000:
+            case <= 0x1FFF:
                 ExternalRamEnabled = (value & 0x0A) == 0x0A;
                 break;
-            case < 0x4000:
+            case <= 0x3FFF:
             {
                 CurrentBank = value & 0x1F;
                 if(CurrentBank is 0x00 or 0x20 or 0x40 or 0x60)
                     CurrentBank++;
                 break;
             }
-            case < 0x6000 when RomBankingMode:
+            case <= 0x5FFF when RomBankingMode:
             {
                 CurrentBank = (CurrentBank & 0x1F) | ((value & 0x03) << 5);
                 if(CurrentBank is 0x00 or 0x20 or 0x40 or 0x60)
                     CurrentBank++;
                 break;
             }
-            case < 0x6000:
+            case < 0x5FFF:
                 ExternalRam.CurrentBank = value & 0x03;
                 break;
             default:
@@ -59,17 +60,13 @@ public class Mbc1(int startAddress, int endAddress, string name, int bankSizeInB
     
     public override void IncrementByte(ref ushort memoryAddress)
     {
-        if (memoryAddress is >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd)
-        {
-            ExternalRam.IncrementByte(ref memoryAddress);
-        }
+        var newValue = ReadByte(ref memoryAddress).Add(1);
+        WriteByte(ref memoryAddress, ref newValue);
     }
     
     public override void DecrementByte(ref ushort memoryAddress)
     {
-        if (memoryAddress is >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd)
-        {
-            ExternalRam.DecrementByte(ref memoryAddress);
-        }
+        var newValue = ReadByte(ref memoryAddress).Subtract(1);
+        WriteByte(ref memoryAddress, ref newValue);
     }
 }

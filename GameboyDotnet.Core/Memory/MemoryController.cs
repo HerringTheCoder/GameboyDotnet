@@ -13,7 +13,6 @@ public class MemoryController
     public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
     public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
-    // public readonly FixedBank EchoRam = new(0xE000, 0xFDFF, nameof(EchoRam));
     public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
     public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
     public readonly IoBank IoRegisters;
@@ -26,6 +25,7 @@ public class MemoryController
     public MemoryController(ILogger<Gameboy> logger)
     {
         _logger = logger;
+        RomBankNn = new Mbc0Mock(nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 2);
         IoRegisters = new IoBank(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters), logger);
         InitializeMemoryMap();
 
@@ -61,15 +61,17 @@ public class MemoryController
 
     public void LoadProgram(Stream stream)
     {
-        int bytesRead;
-        int currentPosition = 0;
-        //TODO: Determine the size and mapper of the ROM, then setup and load the banks accordingly
-        RomBankNn = new Mbc0(BankAddress.RomBank0Start, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 2);
-        RomBankNn = new Mbc1(BankAddress.RomBank0Start, BankAddress.RomBankNnEnd, nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 128);
+        //Load first bank to read cartridge header
+        var bank0 = new byte[16384];
+        var currentPosition = stream.Read(bank0, 0, 16384);
+        RomBankNn = MbcFactory.CreateMbc(bank0[0x147], bank0[0x148], bank0[0x149]);
         InitializeMemoryMap();
+        bank0.CopyTo(RomBankNn.MemorySpace, 0);
 
-        for (int i = 0; i < RomBankNn.NumberOfBanks; i++)
+        //Load the rest of the banks
+        for (int i = 1; i < RomBankNn.NumberOfBanks; i++)
         {
+            int bytesRead;
             while ((bytesRead = stream.Read(
                        buffer: RomBankNn.MemorySpace,
                        offset: RomBankNn.BankSizeInBytes * i,
