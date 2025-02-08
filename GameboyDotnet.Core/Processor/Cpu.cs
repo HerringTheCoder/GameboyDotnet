@@ -61,7 +61,7 @@ public partial class Cpu
             return false;
 
         IsHalted = false;
-        int interruptIndex = BitOperations.TrailingZeroCount(interrupt);
+        var interruptIndex = BitOperations.TrailingZeroCount(interrupt);
         Register.InterruptsMasterEnabled = false;
         MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
         PushStack(Register.PC);

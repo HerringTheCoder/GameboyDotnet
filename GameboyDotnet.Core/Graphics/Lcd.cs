@@ -35,6 +35,17 @@ public class Lcd(MemoryController memoryController)
     public byte Obp0 => memoryController.ReadByte(Constants.OBP0Register);
     public byte Bgp => memoryController.ReadByte(Constants.BGPRegister);
 
+    public BgWindowDisplayPriority BgWindowDisplayPriority => Lcdc.IsBitSet(0)
+        ? BgWindowDisplayPriority.High
+        : BgWindowDisplayPriority.Low;
+    public ObjDisplay ObjDisplay => Lcdc.IsBitSet(1)
+        ? ObjDisplay.Enabled
+        : ObjDisplay.Disabled;
+
+    public ObjSize ObjSize => Lcdc.IsBitSet(2)
+        ? ObjSize.Size8X16
+        : ObjSize.Size8X8;
+    
     public BgTileMapArea BgTileMapArea => Lcdc.IsBitSet(3)
         ? BgTileMapArea.Tilemap9C00
         : BgTileMapArea.Tilemap9800;
@@ -50,18 +61,6 @@ public class Lcd(MemoryController memoryController)
     public WindowTileMapArea WindowTileMapArea => Lcdc.IsBitSet(6)
         ? WindowTileMapArea.Tilemap9C00
         : WindowTileMapArea.Tilemap9800;
-
-    public ObjDisplay ObjDisplay => Lcdc.IsBitSet(1)
-        ? ObjDisplay.Enabled
-        : ObjDisplay.Disabled;
-
-    public BgWindowDisplayPriority BgWindowDisplayPriority => Lcdc.IsBitSet(0)
-        ? BgWindowDisplayPriority.High
-        : BgWindowDisplayPriority.Low;
-
-    public ObjSize ObjSize => Lcdc.IsBitSet(2)
-        ? ObjSize.Size8X16
-        : ObjSize.Size8X8;
     
     
     public void UpdatePpuMode(PpuMode currentPpuMode)
@@ -100,7 +99,9 @@ public class Lcd(MemoryController memoryController)
         }
 
         Ly = ly;
-        Stat = isLyEqualToLyc ? stat.SetBit(2) : stat.ClearBit(2);
+        Stat = isLyEqualToLyc
+            ? stat.SetBit(2)
+            : stat.ClearBit(2);
     }
 
     private void RequestVBlankInterrupt()
