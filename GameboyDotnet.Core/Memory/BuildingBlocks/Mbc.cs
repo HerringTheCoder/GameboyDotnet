@@ -5,6 +5,6 @@ public class MemoryBankController(string name, int bankSizeInBytes, int numberOf
 {
     protected SwitchableBank ExternalRam = new(BankAddress.ExternalRamStart, BankAddress.ExternalRamEnd, nameof(ExternalRam), bankSizeInBytes: 8192, numberOfBanks: 512);
     protected bool ExternalRamEnabled { get; set; }
-    protected bool RomBankingMode { get; set; }
+    protected int RomBankingMode { get; set; }
     
 }

@@ -19,5 +19,9 @@
     <ItemGroup>
       <Compile Remove="Gameboy.Threads.cs" />
     </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\GameboyDotnet.Common\GameboyDotnet.Common.csproj" />
+    </ItemGroup>
 
 </Project>

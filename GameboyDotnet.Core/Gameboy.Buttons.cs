@@ -49,7 +49,6 @@ public partial class Gameboy
     
     public void UpdateJoypadState()
     {
-        
         if((Cpu.MemoryController.ReadByte(Constants.JoypadRegister) & 0x0F) != 0x0F)
         {
             Cpu.MemoryController.WriteByte(

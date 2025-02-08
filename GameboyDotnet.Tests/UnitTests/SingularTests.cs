@@ -8,7 +8,7 @@ public class SingularTests
 {
     public static IEnumerable<object[]> TestCases()
     {
-        foreach (var test in TestHelper.TestCases(0, 500, fileName: "76.json").SelectMany(x => x.Value))
+        foreach (var test in TestHelper.TestCases(0, 500, fileName: "55.json", specificTestName: "55 0392").SelectMany(x => x.Value))
         {
             yield return [test];
         }

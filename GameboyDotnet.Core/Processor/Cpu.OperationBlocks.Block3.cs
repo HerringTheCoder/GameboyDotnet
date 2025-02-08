@@ -10,7 +10,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - ADD A, r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - ADD A, r8", opCode);
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Set8BitAddCarryFlags(Register.A, value);
         Register.A = Register.A.Add(value);
@@ -22,7 +23,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) AddImmediate8BitToAWithCarry(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - ADC A, n88", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - ADC A, n88", opCode);
         var valueToAdd = MemoryController.ReadByte(Register.PC.Add(1));
         var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
 
@@ -38,7 +40,9 @@ public partial class Cpu
     /// <returns></returns>
     private (byte instructionBytesLength, byte durationTStates) SubtractImmediate8BitFromA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - SUB A, r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - SUB A, r8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Set8BitSubtractCompareFlags(Register.A, value);
         Register.A = Register.A.Subtract(value);
@@ -50,7 +54,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) SubtractImmediate8BitFromAWithCarry(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - SBC A, r8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - SBC A, r8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
 
@@ -64,7 +70,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) AndImmediate8BitWithA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - AND A, n8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - AND A, n8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Register.A = (byte)(Register.A & value);
         Set8BitAndFlags();
@@ -76,7 +84,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) XorImmediate8BitWithA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - XOR A, n8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - XOR A, n8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Register.A = (byte)(Register.A ^ value);
         Set8BitOrXorFlags();
@@ -88,7 +98,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) OrImmediate8BitWithA(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X2} - OR A, n8", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - OR A, n8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Register.A = (byte)(Register.A | value);
         Set8BitOrXorFlags();
@@ -104,6 +116,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - CP A, n8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Set8BitSubtractCompareFlags(Register.A, value);
         return (2, 8);
@@ -116,6 +129,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - RET cc", opCode);
+        
         if (CheckCondition(ref opCode))
         {
             Register.PC = PopStack();
@@ -133,6 +147,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - RET", opCode);
+        
         Register.PC = PopStack();
         return (0, 16);
     }
@@ -147,6 +162,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - RETI", opCode);
+        
         Register.PC = PopStack();
         Register.InterruptsMasterEnabled = true;
         return (0, 16);
@@ -159,6 +175,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - JP cc, nn", opCode);
+        
         if (CheckCondition(ref opCode))
         {
             Register.PC = MemoryController.ReadWord(Register.PC.Add(1));
@@ -177,6 +194,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - JP nn", opCode);
+        
         Register.PC = MemoryController.ReadWord(Register.PC.Add(1));
         return (0, 16); //Actual length: 3, but the correct value of PC is already set
     }
@@ -190,6 +208,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - JP HL", opCode);
+        
         Register.PC = Register.HL;
         return (0, 4); //Actual length: 1, but the correct value of PC is already set
     }
@@ -201,6 +220,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - CALL cc, nn", opCode);
+        
         if (CheckCondition(ref opCode))
         {
             PushStack(Register.PC.Add(3)); //Store the address of the next instruction
@@ -218,6 +238,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - CALL nn", opCode);
+        
         PushStack(Register.PC.Add(3)); //Push next address after this instruction
         Register.PC = MemoryController.ReadWord(Register.PC.Add(1)); //Jump to the address of imm16
         return (0, 24); //PC already set
@@ -227,6 +248,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - RST {n3:X}", opCode, n3);
+        
         PushStack(Register.PC.Add(1)); //Push next address after this instruction
         Register.PC = (ushort)(n3 << 3); //<< 3 to multiply by 8
         return (0, 16); //PC already set, thus 0
@@ -239,6 +261,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - POP {getR16:X}", opCode, r16stk);
+        
         var poppedValue = PopStack();
 
         switch (r16stk)
@@ -301,6 +324,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LDH (C), A", opCode);
+        
         MemoryController.WriteByte((ushort)(0xFF00 + Register.C), Register.A);
         return (1, 8);
     }
@@ -312,6 +336,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LDH (n), A", opCode);
+        
         var address = MemoryController.ReadByte(Register.PC.Add(1));
         MemoryController.WriteByte((ushort)(0xFF00 + address), Register.A);
         return (2, 12);
@@ -324,6 +349,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LD (nn), A", opCode);
+        
         var address = MemoryController.ReadWord(Register.PC.Add(1));
         MemoryController.WriteByte(address, Register.A);
         return (3, 16);
@@ -336,6 +362,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LDH A, (C)", opCode);
+        
         Register.A = MemoryController.ReadByte((ushort)(0xFF00 + Register.C));
         return (1, 8);
     }
@@ -347,6 +374,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LDH A, (n)", opCode);
+        
         var address = MemoryController.ReadByte(Register.PC.Add(1));
         Register.A = MemoryController.ReadByte((ushort)(0xFF00 + address));
         return (2, 12);
@@ -359,6 +387,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LD A, (n16)", opCode);
+        
         var address = MemoryController.ReadWord(Register.PC.Add(1));
         Register.A = MemoryController.ReadByte(address);
         return (3, 16);
@@ -371,6 +400,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - ADD SP, n", opCode);
+        
         var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
         SetSPSignedByteAddFlags(Register.SP, immediate8Bit);
         Register.SP = (ushort)(Register.SP + (sbyte)immediate8Bit);
@@ -384,6 +414,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LD HL, SP + n", opCode);
+        
         var immediate8Bit = MemoryController.ReadByte(Register.PC.Add(1));
         SetSPSignedByteAddFlags(Register.SP, immediate8Bit);
         Register.HL = (ushort)(Register.SP + (sbyte)immediate8Bit);
@@ -400,6 +431,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - LD SP, HL", opCode);
+        
         Register.SP = Register.HL;
         return (1, 8);
     }
@@ -411,6 +443,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - DI", opCode);
+        
         Register.IMEPending = false;
         Register.InterruptsMasterEnabled = false;
         return (1, 4);
@@ -423,6 +456,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - EI", opCode);
+        
         Register.IMEPending = true;
         return (1, 4);
     }

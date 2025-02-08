@@ -49,6 +49,8 @@ while (running && !cts.IsCancellationRequested)
             case SDL_EventType.SDL_KEYDOWN:
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyPressed))
                     gameboy.PressButton(keyPressed);
+                if (e.key.keysym.sym is SDL_Keycode.SDLK_p)
+                    gameboy.SwitchDebugMode();
                 break;
             case SDL_EventType.SDL_KEYUP:
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyReleased))

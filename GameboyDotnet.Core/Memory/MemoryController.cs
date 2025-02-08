@@ -12,14 +12,15 @@ public class MemoryController
     public SwitchableBank RomBankNn;
     public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
-    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start,BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
+    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start, BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
     public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
     public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
     public readonly IoBank IoRegisters;
     public readonly FixedBank HRam = new(BankAddress.HRamStart, BankAddress.HRamEnd, nameof(HRam));
-    public readonly FixedBank InterruptEnableRegister = new(BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd, nameof(InterruptEnableRegister));
+    public readonly FixedBank InterruptEnableRegister = new(
+        BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd,
+        nameof(InterruptEnableRegister));
 
-    private StringBuilder _sb = new();
     private readonly ILogger<Gameboy> _logger;
 
     public MemoryController(ILogger<Gameboy> logger)
@@ -28,35 +29,7 @@ public class MemoryController
         RomBankNn = new Mbc0Mock(nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 2);
         IoRegisters = new IoBank(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters), logger);
         InitializeMemoryMap();
-
-        WriteByte(Constants.JoypadRegister, 0xCF);
-        WriteByte(0xFF02, 0x7E);
-        WriteByte(0xFF04, 0xAB);//18?
-        WriteByte(0xFF07, 0xF8);
-        WriteByte(0xFF0F, 0xE1);
-        WriteByte(0xFF10, 0x80);
-        WriteByte(0xFF11, 0xBF);
-        WriteByte(0xFF12, 0xF3);
-        WriteByte(0xFF13, 0xFF);
-        WriteByte(0xFF14, 0xBF);
-        WriteByte(0xFF16, 0x3F);
-        WriteByte(0xFF18, 0xFF);
-        WriteByte(0xFF19, 0xBF);
-        WriteByte(0xFF1A, 0x7F);
-        WriteByte(0xFF1B, 0xFF);
-        WriteByte(0xFF1C, 0x9F);
-        WriteByte(0xFF1D, 0xFF);
-        WriteByte(0xFF1E, 0xBF);
-        WriteByte(0xFF20, 0xFF);
-        WriteByte(0xFF23, 0xBF);
-        WriteByte(0xFF24, 0x77);
-        WriteByte(0xFF25, 0xF3);
-        WriteByte(0xFF26, 0xF1);
-        WriteByte(0xFF40, 0x91);
-        WriteByte(0xFF41, 0x01);
-        WriteByte(0xFF44, 0x90);
-        WriteByte(0xFF47, 0xFC);
-        WriteByte(0xFF4D, 0xFF); 
+        InitializeBootStates();
     }
 
     public void LoadProgram(Stream stream)
@@ -75,55 +48,64 @@ public class MemoryController
             while ((bytesRead = stream.Read(
                        buffer: RomBankNn.MemorySpace,
                        offset: RomBankNn.BankSizeInBytes * i,
-                       count: RomBankNn.BankSizeInBytes*(i+1) - currentPosition)) > 0)
+                       count: RomBankNn.BankSizeInBytes * (i + 1) - currentPosition)) > 0)
             {
                 currentPosition += bytesRead;
             }
-            
-            if(stream.Length == currentPosition)
+
+            if (stream.Length == currentPosition)
                 break;
         }
     }
 
     public byte ReadByte(ushort address)
     {
+        if (address is >= 0xE000 and <= 0xFDFF)
+        {
+            address -= 0x2000; //Adjust address for Echo Ram -> Wram
+        }
+        
         var memoryBank = _memoryMap[address];
-        
-        if (_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("Reading byte from memory address: {address:X} located in {memoryBank.Name}", address,
-                memoryBank.Name);
-        
+
         return memoryBank.ReadByte(ref address);
     }
 
     public void WriteByte(ushort address, byte value)
     {
+        if (address is >= 0xE000 and <= 0xFDFF)
+        {
+            address -= 0x2000;
+        }
+             //Adjust address for Echo Ram -> Wram
+        
         if (address == Constants.DMARegister)
-        { 
+        {
             DmaTransfer(ref value);
         }
-        
-        if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
-        {
-            Console.WriteLine($"SB WRITE: {value:X2}");
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("-----------------");
-            _sb.Append((char)value);
-            Console.WriteLine(_sb);
-            Console.WriteLine("-----------------");
-            Console.ResetColor();
-            if (_sb.ToString().Contains("Passed\n"))
-            {
-                // throw new Exception("Test Passed");
-            }
-        }
+
+// #if DEBUG
+//         if (address is 0xFF01 && _logger.IsEnabled(LogLevel.Debug))
+//         {
+//             Console.WriteLine($"SB WRITE: {value:X2}");
+//             Console.ForegroundColor = ConsoleColor.Green;
+//             Console.WriteLine("-----------------");
+//             _sb.Append((char)value);
+//             Console.WriteLine(_sb);
+//             Console.WriteLine("-----------------");
+//             Console.ResetColor();
+//             if (_sb.ToString().Contains("Passed\n"))
+//             {
+//                 // throw new Exception("Test Passed");
+//             }
+//         }
+// #endif
 
         var memoryBank = _memoryMap[address];
 
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("Writing byte {value:X} to memory address: {address:X} located in {memoryBank.Name}",
                 value, address, memoryBank.Name);
-        
+
         memoryBank.WriteByte(ref address, ref value);
     }
 
@@ -159,7 +141,7 @@ public class MemoryController
 
         memoryBank.DecrementByte(ref address);
     }
-    
+
     private void DmaTransfer(ref byte value)
     {
         ushort sourceAddress = (ushort)(value << 8); //0xXX00
@@ -168,10 +150,10 @@ public class MemoryController
             WriteByte(i, ReadByte(sourceAddress++));
         }
     }
-    
+
     private void InitializeMemoryMap()
     {
-        for (int i = 0; i <= 0xFFFF; i++)
+        for (int i = 0; i <= 65535; i++)
         {
             _memoryMap[i] = i switch
             {
@@ -189,5 +171,37 @@ public class MemoryController
                 _ => InterruptEnableRegister
             };
         }
+    }
+
+    private void InitializeBootStates()
+    {
+        WriteByte(Constants.JoypadRegister, 0xCF);
+        WriteByte(0xFF02, 0x7E);
+        WriteByte(0xFF04, 0xAB); //18?
+        WriteByte(0xFF07, 0xF8);
+        WriteByte(0xFF0F, 0xE1);
+        WriteByte(0xFF10, 0x80);
+        WriteByte(0xFF11, 0xBF);
+        WriteByte(0xFF12, 0xF3);
+        WriteByte(0xFF13, 0xFF);
+        WriteByte(0xFF14, 0xBF);
+        WriteByte(0xFF16, 0x3F);
+        WriteByte(0xFF18, 0xFF);
+        WriteByte(0xFF19, 0xBF);
+        WriteByte(0xFF1A, 0x7F);
+        WriteByte(0xFF1B, 0xFF);
+        WriteByte(0xFF1C, 0x9F);
+        WriteByte(0xFF1D, 0xFF);
+        WriteByte(0xFF1E, 0xBF);
+        WriteByte(0xFF20, 0xFF);
+        WriteByte(0xFF23, 0xBF);
+        WriteByte(0xFF24, 0x77);
+        WriteByte(0xFF25, 0xF3);
+        WriteByte(0xFF26, 0xF1);
+        WriteByte(0xFF40, 0x91);
+        WriteByte(0xFF41, 0x01);
+        WriteByte(0xFF44, 0x90);
+        WriteByte(0xFF47, 0xFC);
+        WriteByte(0xFF4D, 0xFF);
     }
 }

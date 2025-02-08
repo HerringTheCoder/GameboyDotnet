@@ -40,7 +40,7 @@ public partial class Cpu
             _ => throw new NotImplementedException($"Operation {opCode:X2} not implemented")
         };
 
-        if (opCode != 0xFB && Register.IMEPending)
+        if (Register.IMEPending && opCode != 0xFB)
         {
             Register.IMEPending = false;
             Register.InterruptsMasterEnabled = true;
@@ -79,7 +79,22 @@ public partial class Cpu
         return true;
     }
 
-
+    private bool CheckCondition(ref byte opCode)
+    {
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X2} - Checking condition flag", opCode);
+        
+        return opCode.GetCondition() switch
+        {
+            0b00 => !Register.ZeroFlag,
+            0b01 => Register.ZeroFlag,
+            0b10 => !Register.CarryFlag,
+            0b11 => Register.CarryFlag,
+            _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+    
+    
     // private void LogTestOutput(StreamWriter writer)
     // {
     //     var pcmem0 = MemoryController.ReadByte(Register.PC);
@@ -100,19 +115,4 @@ public partial class Cpu
     //         $"PC:{Register.PC:X4} " +
     //         $"PCMEM:{pcmem0:X2},{pcmem1:X2},{pcmem2:X2},{pcmem3:X2}");
     // }
-
-    private bool CheckCondition(ref byte opCode)
-    {
-        if(_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("{opcode:X2} - Checking condition flag", opCode);
-        
-        return opCode.GetCondition() switch
-        {
-            0b00 => !Register.ZeroFlag,
-            0b01 => Register.ZeroFlag,
-            0b10 => !Register.CarryFlag,
-            0b11 => Register.CarryFlag,
-            _ => throw new ArgumentOutOfRangeException()
-        };
-    }
 }

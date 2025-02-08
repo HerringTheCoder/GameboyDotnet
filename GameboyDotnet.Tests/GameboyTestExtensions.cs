@@ -1,4 +1,5 @@
 ﻿using FluentAssertions;
+using GameboyDotnet.Memory;
 
 namespace GameboyDotnet.Tests;
 
@@ -17,6 +18,8 @@ internal static class GameboyTestExtensions
         gameboy.Cpu.Register.PC = test.Initial.Pc;
         gameboy.Cpu.Register.SP = test.Initial.Sp;
         gameboy.Cpu.Register.InterruptsMasterEnabled = test.Initial.Ime == 1;
+        gameboy.Cpu.MemoryController.WriteByte(BankAddress.InterruptEnableRegisterStart, test.Initial.Ie);
+        
         foreach (var mem in test.Initial.Ram)
         {
             gameboy.Cpu.MemoryController.WriteByte((ushort)mem[0], (byte)mem[1]);
@@ -52,6 +55,8 @@ internal static class GameboyTestExtensions
         gameboy.Cpu.Register.SP = 0xFFFE;
         gameboy.Cpu.Register.PC = 0x0100;
         gameboy.Cpu.Register.InterruptsMasterEnabled = false;
+        gameboy.Cpu.MemoryController.WriteByte(0xFFFF, 0);
+        
         //Add final state to cleanup
         foreach (var mem in test.Initial.Ram.Concat(test.Final.Ram))
         {

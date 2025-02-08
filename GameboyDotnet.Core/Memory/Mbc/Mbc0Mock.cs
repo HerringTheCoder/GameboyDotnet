@@ -11,7 +11,7 @@ public class Mbc0Mock(string name, int bankSizeInBytes, int numberOfBanks)
             return;
         }
         
-        base.WriteByte(ref address, ref value);
+        MemorySpace[address - StartAddress] = value;
     }
     
     public override byte ReadByte(ref ushort address)
@@ -29,7 +29,7 @@ public class Mbc0Mock(string name, int bankSizeInBytes, int numberOfBanks)
             return;
         }
 
-        base.IncrementByte(ref memoryAddress);
+        MemorySpace[memoryAddress - StartAddress]++;
     }
     
     public override void DecrementByte(ref ushort memoryAddress)
@@ -40,6 +40,6 @@ public class Mbc0Mock(string name, int bankSizeInBytes, int numberOfBanks)
             return;
         }
 
-        base.DecrementByte(ref memoryAddress);
+        MemorySpace[memoryAddress - StartAddress]--;
     }
 }

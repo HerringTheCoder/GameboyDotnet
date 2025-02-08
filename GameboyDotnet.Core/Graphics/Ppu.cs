@@ -208,7 +208,6 @@ public class Ppu(MemoryController memoryController)
         }
     }
     
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static byte GetPaletteColorByPixelColor(ref byte palette, ref ushort pixelColor)
     {
         return pixelColor switch
@@ -220,8 +219,7 @@ public class Ppu(MemoryController memoryController)
             _ => throw new ArgumentOutOfRangeException()
         };
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    
     private (bool objToBackgroundPriority, bool yFlipped, bool xFlipped, byte palette) ExtractObjectAttributes(
         ref ushort oamAddress)
     {

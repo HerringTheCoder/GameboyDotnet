@@ -22,18 +22,18 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks)
                     CurrentBank++;
                 break;
             }
-            case <= 0x5FFF when RomBankingMode:
+            case <= 0x5FFF when RomBankingMode is 0:
             {
                 CurrentBank = (CurrentBank & 0x1F) | ((value & 0x03) << 5);
                 if(CurrentBank is 0x00 or 0x20 or 0x40 or 0x60)
                     CurrentBank++;
                 break;
             }
-            case < 0x5FFF:
+            case <= 0x5FFF:
                 ExternalRam.CurrentBank = value & 0x03;
                 break;
             default:
-                RomBankingMode = (value & 0x01) == 0x01;
+                RomBankingMode = value & 0x01;
                 break;
         }
 

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using GameboyDotnet.Common;
 using GameboyDotnet.Graphics;
 using GameboyDotnet.Processor;
 using GameboyDotnet.Timers;
@@ -8,11 +9,12 @@ namespace GameboyDotnet;
 
 public partial class Gameboy
 {
-    private readonly ILogger<Gameboy> _logger;
+    private ILogger<Gameboy> _logger;
     public Cpu Cpu { get; }
     public Ppu Ppu { get; }
     public MainTimer TimaTimer { get; } = new();
     public DividerTimer DivTimer { get; } = new();
+    public bool IsDebugMode { get; private set; }
 
     public Gameboy(ILogger<Gameboy> logger)
     {
@@ -52,7 +54,15 @@ public partial class Gameboy
 
                 currentCycles -= cyclesPerFrame;
                 DisplayUpdated.Invoke(this, EventArgs.Empty);
-                
+
+                // if (frameLimitEnabled)
+                // {
+                //     var remainingTime = targetTime - Stopwatch.GetTimestamp();
+                //     if (remainingTime > 0)
+                //     {
+                //         SpinWait.SpinUntil(() => Stopwatch.GetTimestamp() >= targetTime);
+                //     }
+                // }
                 if(frameLimitEnabled)
                 {
                     while (Stopwatch.GetTimestamp() < targetTime)
@@ -69,5 +79,12 @@ public partial class Gameboy
         }
 
         return Task.CompletedTask;
+    }
+
+    public void SwitchDebugMode()
+    {
+        _logger.LogInformation("Switching debug mode to {IsDebugMode}", !IsDebugMode);
+        IsDebugMode = !IsDebugMode;
+        _logger = LoggerHelper.GetLogger<Gameboy>(IsDebugMode ? LogLevel.Debug : LogLevel.Information);
     }
 }
