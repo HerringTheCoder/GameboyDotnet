@@ -15,7 +15,7 @@ public partial class Gameboy
     public MainTimer TimaTimer { get; } = new();
     public DividerTimer DivTimer { get; } = new();
     public bool IsFrameLimiterEnabled;
-    internal bool IsMemoryDumpingActive;
+    public bool IsMemoryDumpRequested;
 
     public Gameboy(ILogger<Gameboy> logger)
     {
@@ -37,16 +37,9 @@ public partial class Gameboy
         
         var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
-        var frameCounter = 0;
 
         while (!ctsToken.IsCancellationRequested)
         {
-            if (IsMemoryDumpingActive && frameCounter == 0)
-            {
-                Task.Delay(TimeSpan.FromSeconds(1), ctsToken).RunSynchronously();
-                continue;
-            }
-
             try
             {
                 var startTime = Stopwatch.GetTimestamp();
@@ -60,13 +53,13 @@ public partial class Gameboy
                     currentCycles += tStates;
                 }
                 UpdateJoypadState();
-                
-                frameCounter++;
                 currentCycles -= cyclesPerFrame;
-                DisplayUpdated.Invoke(this, EventArgs.Empty);
-                if(frameCounter % 60 == 0)
+                Ppu.FrameBuffer.EnqueueFrame(Ppu.Lcd);
+                
+                if (IsMemoryDumpRequested)
                 {
-                    frameCounter = 0;
+                    DumpMemory();
+                    continue;
                 }
                 
                 if(IsFrameLimiterEnabled)

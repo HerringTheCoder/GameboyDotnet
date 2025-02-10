@@ -19,7 +19,7 @@ public static class Renderer
     
     private static IntPtr _font;
     
-    public static void RenderStates(ref IntPtr renderer, Lcd lcd, ref IntPtr window, string fpsText)
+    public static void RenderStates(ref IntPtr renderer, ref IntPtr window, byte[,] frame, string fpsText)
     {
         try
         {
@@ -57,9 +57,9 @@ public static class Renderer
             {
                 for (int x = 0; x < ScreenWidth; x++)
                 {
-                    if (lcd.Buffer[x, y] != 0)
+                    if (frame[x, y] != 0)
                     {
-                        var color = lcd.Buffer[x, y] switch
+                        var color = frame[x, y] switch
                         {
                             0 => White,
                             1 => LightGray,

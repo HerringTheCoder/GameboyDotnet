@@ -8,6 +8,7 @@ namespace GameboyDotnet.Graphics;
 
 public class Ppu(MemoryController memoryController)
 {
+    public FrameBuffer FrameBuffer { get; } = new();
     private int _cyclesCounter;
     private byte _ly;
 
