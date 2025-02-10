@@ -1,5 +1,4 @@
-﻿using System.Numerics;
-using GameboyDotnet.Components.Cpu;
+﻿using GameboyDotnet.Components.Cpu;
 using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory;
 using Microsoft.Extensions.Logging;
@@ -51,34 +50,6 @@ public partial class Cpu
         return (byte)(operationSize.durationTStates + (interruptHandled ? 5 : 0));
     }
 
-    private bool HandleInterrupt()
-    {
-        var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
-        var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
-        var interrupt = (byte)(interruptFlags & interruptEnable);
-
-        if (interrupt == 0 || !Register.InterruptsMasterEnabled) //TODO: https://gbdev.io/pandocs/halt.html
-            return false;
-
-        IsHalted = false;
-        var interruptIndex = BitOperations.TrailingZeroCount(interrupt);
-        Register.InterruptsMasterEnabled = false;
-        MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
-        PushStack(Register.PC);
-
-        Register.PC = (1 << interruptIndex) switch
-        {
-            0x01 => 0x0040,
-            0x02 => 0x0048,
-            0x04 => 0x0050,
-            0x08 => 0x0058,
-            0x10 => 0x0060,
-            _ => throw new ArgumentOutOfRangeException(nameof(interrupt), interrupt, "Invalid interrupt")
-        };
-
-        return true;
-    }
-
     private bool CheckCondition(ref byte opCode)
     {
         if(_logger.IsEnabled(LogLevel.Debug))
@@ -93,8 +64,8 @@ public partial class Cpu
             _ => throw new ArgumentOutOfRangeException()
         };
     }
-    
-    
+
+
     // private void LogTestOutput(StreamWriter writer)
     // {
     //     var pcmem0 = MemoryController.ReadByte(Register.PC);

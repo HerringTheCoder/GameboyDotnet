@@ -12,28 +12,30 @@ public class Lcd(MemoryController memoryController)
     public const int ScreenHeight = 144;
     public const int ScreenWidth = 160;
     public byte[,] Buffer = new byte[160, 144];
-    public byte Lcdc => memoryController.ReadByte(Constants.LCDControlRegister);
-    private byte Lyc => memoryController.ReadByte(Constants.LYCompareRegister);
+
+    public byte Lcdc => memoryController.IoRegisters.MemorySpace[0x40];
+    public byte Lyc => memoryController.IoRegisters.MemorySpace[0x45];
 
     public byte Ly
     {
-        get => memoryController.ReadByte(Constants.LYRegister);
-        private set => memoryController.WriteByte(Constants.LYRegister, value);
+        get => memoryController.IoRegisters.MemorySpace[0x44];
+        private set => memoryController.IoRegisters.MemorySpace[0x44] = value;
     }
-
+    
     public byte Stat
     {
-        get => memoryController.ReadByte(Constants.LcdStatusRegister);
-        private set => memoryController.WriteByte(Constants.LcdStatusRegister, value);
+        // 0xFF41 & ~(0xFF00) = 0xFF41 & 0x00FF = 0x0041
+        get => memoryController.IoRegisters.MemorySpace[Constants.LcdStatusRegister & ~BankAddress.IoRegistersStart];
+        private set => memoryController.IoRegisters.MemorySpace[0x41] = value;
     }
 
-    public byte Scx => memoryController.ReadByte(Constants.SCXRegister);
-    public byte Scy => memoryController.ReadByte(Constants.SCYRegister);
-    public byte Wy => memoryController.ReadByte(Constants.WYRegister);
-    public byte Wx => memoryController.ReadByte(Constants.WXRegister);
-    public byte Obp1 => memoryController.ReadByte(Constants.OBP1Register);
-    public byte Obp0 => memoryController.ReadByte(Constants.OBP0Register);
-    public byte Bgp => memoryController.ReadByte(Constants.BGPRegister);
+    public byte Scx => memoryController.IoRegisters.MemorySpace[0x43];
+    public byte Scy => memoryController.IoRegisters.MemorySpace[0x42];
+    public byte Wy => memoryController.IoRegisters.MemorySpace[0x4A];
+    public byte Wx => memoryController.IoRegisters.MemorySpace[0x4B];
+    public byte Obp1 => memoryController.IoRegisters.MemorySpace[0x49];
+    public byte Obp0 => memoryController.IoRegisters.MemorySpace[0x48];
+    public byte Bgp => memoryController.IoRegisters.MemorySpace[0x47];
 
     public BgWindowDisplayPriority BgWindowDisplayPriority => Lcdc.IsBitSet(0)
         ? BgWindowDisplayPriority.High
@@ -62,7 +64,6 @@ public class Lcd(MemoryController memoryController)
         ? WindowTileMapArea.Tilemap9C00
         : WindowTileMapArea.Tilemap9800;
     
-    
     public void UpdatePpuMode(PpuMode currentPpuMode)
     {
         var stat = (byte)((Stat & 0b11111100) | (byte)currentPpuMode);
@@ -90,18 +91,18 @@ public class Lcd(MemoryController memoryController)
 
     public void UpdateLy(byte ly)
     {
-        var stat = Stat;
         bool isLyEqualToLyc = ly == Lyc;
 
-        if (isLyEqualToLyc && stat.IsBitSet(6)) //LYC=LY stat interrupt enabled
+        if (isLyEqualToLyc && Stat.IsBitSet(6)) //LYC=LY stat interrupt enabled
         {
             RequestLcdInterrupt();
         }
 
         Ly = ly;
+        
         Stat = isLyEqualToLyc
-            ? stat.SetBit(2)
-            : stat.ClearBit(2);
+            ? Stat.SetBit(2)
+            : Stat.ClearBit(2);
     }
 
     private void RequestVBlankInterrupt()

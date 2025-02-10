@@ -12,7 +12,7 @@ public static class Constants
     public const ushort TMARegister = 0xFF06;
     public const ushort TACRegister = 0xFF07;
 
-    
+    //LCD, PPU
     public const ushort LCDControlRegister = 0xFF40;
     public const ushort LcdStatusRegister = 0xFF41;
     public const ushort SCYRegister = 0xFF42;

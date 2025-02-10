@@ -10,13 +10,20 @@ public class MemoryController
 {
     private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
     public SwitchableBank RomBankNn;
-    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
+
+    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192,
+        numberOfBanks: 2);
+
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
-    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start, BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
+
+    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start, BankAddress.Wram1End, nameof(Wram1),
+        bankSizeInBytes: 4096, numberOfBanks: 8);
+
     public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
     public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
     public readonly IoBank IoRegisters;
     public readonly FixedBank HRam = new(BankAddress.HRamStart, BankAddress.HRamEnd, nameof(HRam));
+
     public readonly FixedBank InterruptEnableRegister = new(
         BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd,
         nameof(InterruptEnableRegister));
@@ -39,8 +46,9 @@ public class MemoryController
         var currentPosition = stream.Read(bank0, 0, 16384);
         RomBankNn = MbcFactory.CreateMbc(bank0[0x147], bank0[0x148], bank0[0x149]);
         InitializeMemoryMap();
-        bank0.CopyTo(RomBankNn.MemorySpace, 0);
 
+        //Load the first bank
+        bank0.CopyTo(RomBankNn.MemorySpace, 0);
         //Load the rest of the banks
         for (int i = 1; i < RomBankNn.NumberOfBanks; i++)
         {
@@ -62,9 +70,10 @@ public class MemoryController
     {
         if (address is >= 0xE000 and <= 0xFDFF)
         {
+            _logger.LogDebug("Reading from Echo Ram");
             address -= 0x2000; //Adjust address for Echo Ram -> Wram
         }
-        
+
         var memoryBank = _memoryMap[address];
 
         return memoryBank.ReadByte(ref address);
@@ -74,10 +83,10 @@ public class MemoryController
     {
         if (address is >= 0xE000 and <= 0xFDFF)
         {
-            address -= 0x2000;
+            _logger.LogDebug("Writing to Echo Ram");
+            address -= 0x2000; //Adjust address for Echo Ram -> Wram
         }
-             //Adjust address for Echo Ram -> Wram
-        
+
         if (address == Constants.DMARegister)
         {
             DmaTransfer(ref value);
@@ -144,7 +153,7 @@ public class MemoryController
 
     private void DmaTransfer(ref byte value)
     {
-        ushort sourceAddress = (ushort)(value << 8); //0xXX00
+        ushort sourceAddress = (ushort)(value << 8); //0x_XX00
         for (ushort i = 0xFE00; i <= 0xFE9F; i++)
         {
             WriteByte(i, ReadByte(sourceAddress++));

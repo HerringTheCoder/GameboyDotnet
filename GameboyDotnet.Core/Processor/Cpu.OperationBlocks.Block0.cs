@@ -1,4 +1,5 @@
-﻿using GameboyDotnet.Extensions;
+﻿using System.Runtime.CompilerServices;
+using GameboyDotnet.Extensions;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable InconsistentNaming
@@ -171,7 +172,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterA(ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Rotating left register A", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Rotating left register A", opCode);
+        
         var oldCarryFlag = Register.CarryFlag;
         (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0; //most significant bit
@@ -184,7 +187,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) RotateRightRegisterA(ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Rotating right register A", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Rotating right register A", opCode);
+        
         var oldCarryFlag = Register.CarryFlag;
         (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b0000_0001) != 0; //least significant bit
@@ -198,7 +203,9 @@ public partial class Cpu
     /// <param name="opCode"></param>
     private (byte instructionBytesLength, byte durationTStates) RotateLeftRegisterAThroughCarry(ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Rotating left register A through carry", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Rotating left register A through carry", opCode);
+        
         (Register.ZeroFlag, Register.NegativeFlag, Register.HalfCarryFlag) = (false, false, false);
         Register.CarryFlag = (Register.A & 0b1000_0000) != 0;
         Register.A = (byte)(Register.A << 1 | (Register.CarryFlag ? 1 : 0));
@@ -224,7 +231,8 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) DecimalAdjustAccumulator(ref byte opCode)
     {
-        _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opCode:X2} - Decimal adjust accumulator (DAA)", opCode);
 
         byte adjust = 0;
         
@@ -283,6 +291,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opCode:X2} - Jumping relative to immediate signed 8 bit", opCode);
+        
         var immediate8Bit = (sbyte)MemoryController.ReadByte(Register.PC.Add(1));
         Register.PC = (ushort)(Register.PC + 2 + immediate8Bit);
         return (0, 12);
@@ -309,7 +318,9 @@ public partial class Cpu
     /// </summary>
     private (byte instructionBytesLength, byte durationTStates) Stop(ref byte opCode)
     {
-        _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
+        if(_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
+        
         IsHalted = true;
         //TODO: Implement GBC mode switch if needed
         return (1, 4);

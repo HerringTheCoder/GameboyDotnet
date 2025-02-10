@@ -9,37 +9,46 @@ namespace GameboyDotnet.Components.Cpu;
 /// </summary>
 public class CpuRegister
 {
+    private readonly byte[] R8LookupTable;
+
+    public CpuRegister()
+    {
+        R8LookupTable = new byte[8]; //[B, C, D, E, H, L, NULL, A]
+        AF = 0x01B0;
+        BC = 0x0013;
+        DE = 0x00D8;
+        HL = 0x014D;
+    }
+
     /// <summary>
     /// IME - Interrupt Master Enable flag
     /// </summary>
-    public bool InterruptsMasterEnabled { get; set; }
-    public bool IMEPending { get; set; }
+    public bool InterruptsMasterEnabled;
 
-    private ushort _af { get; set; } = 0x01B0;
-
-    private ushort _bc { get; set; } = 0x0013;
-
-    private ushort _de { get; set; } = 0x00D8;
-
-    private ushort _hl { get; set; } = 0x014D;
+    public bool IMEPending;
+    
 
     /// <summary>
     /// Stack pointer, always accessed as 16-bit
     /// </summary>
-    public ushort SP { get; set; } = 0xFFFE;
+    public ushort SP = 0xFFFE;
 
     /// <summary>
     /// Program counter, always accessed as 16-bit
     /// </summary>
-    public ushort PC { get; set; } = 0x0100;
+    public ushort PC = 0x0100;
 
     /// <summary>
     /// Contains accumulator and flags, splits into A and F
     /// </summary>
     public ushort AF
     {
-        get => _af;
-        set => _af = (ushort)((value & 0xFFF0) | (_af & 0x00FF));
+        get => (ushort)(A << 8 | F);
+        set
+        {
+            A = (byte)(value >> 8);
+            F = (byte)(value & 0x00FF);
+        }
     }
 
     /// <summary>
@@ -47,18 +56,14 @@ public class CpuRegister
     /// </summary>
     public byte A
     {
-        get => (byte)(_af >> 8);
-        set => _af = (ushort)((_af & 0x00FF) | (value << 8));
+        get => R8LookupTable[7];
+        set => R8LookupTable[7] = value;
     }
 
     /// <summary>
     /// Low part of AF 16-bit register
     /// </summary>
-    public byte F
-    {
-        get => (byte)(_af & 0x00FF);
-        set => _af = (ushort)((_af & 0xFF00) | (value & 0xF0));
-    }
+    public byte F { get; set; }
 
     /// <summary>
     /// Zero flag, aka 'z' flag
@@ -101,8 +106,12 @@ public class CpuRegister
     /// </summary>
     public ushort BC
     {
-        get => _bc;
-        set => _bc = value;
+        get => (ushort)(B << 8 | C);
+        set
+        {
+            B = (byte)(value >> 8);
+            C = (byte)(value & 0x00FF);
+        }
     }
 
     /// <summary>
@@ -110,8 +119,8 @@ public class CpuRegister
     /// </summary>
     public byte B
     {
-        get => (byte)(_bc >> 8);
-        set => _bc = (ushort)((_bc & 0x00FF) | (value << 8));
+        get => R8LookupTable[0];
+        set => R8LookupTable[0] = value;
     }
 
     /// <summary>
@@ -119,8 +128,8 @@ public class CpuRegister
     /// </summary>
     public byte C
     {
-        get => (byte)(_bc & 0x00FF);
-        set => _bc = (ushort)((_bc & 0xFF00) | value);
+        get => R8LookupTable[1];
+        set => R8LookupTable[1] = value;
     }
 
     /// <summary>
@@ -128,8 +137,12 @@ public class CpuRegister
     /// </summary>
     public ushort DE
     {
-        get => _de;
-        set => _de = value;
+        get => (ushort)(D << 8 | E);
+        set
+        {
+            D = (byte)(value >> 8);
+            E = (byte)(value & 0x00FF);
+        }
     }
 
     /// <summary>
@@ -137,8 +150,8 @@ public class CpuRegister
     /// </summary>
     public byte D
     {
-        get => (byte)(_de >> 8);
-        set => _de = (ushort)((_de & 0x00FF) | (value << 8));
+        get => R8LookupTable[2];
+        set => R8LookupTable[2] = value;
     }
 
     /// <summary>
@@ -146,8 +159,8 @@ public class CpuRegister
     /// </summary>
     public byte E
     {
-        get => (byte)(_de & 0x00FF);
-        set => _de = (ushort)((_de & 0xFF00) | value);
+        get => R8LookupTable[3];
+        set => R8LookupTable[3] = value;
     }
 
     /// <summary>
@@ -155,8 +168,12 @@ public class CpuRegister
     /// </summary>
     public ushort HL
     {
-        get => _hl;
-        set => _hl = value;
+        get => (ushort)(H << 8 | L);
+        set
+        {
+            H = (byte)(value >> 8);
+            L = (byte)(value & 0x00FF);
+        }
     }
 
     /// <summary>
@@ -164,8 +181,8 @@ public class CpuRegister
     /// </summary>
     public byte H
     {
-        get => (byte)(_hl >> 8);
-        set => _hl = (ushort)((_hl & 0x00FF) | (value << 8));
+        get => R8LookupTable[4];
+        set => R8LookupTable[4] = value;
     }
 
     /// <summary>
@@ -173,8 +190,8 @@ public class CpuRegister
     /// </summary>
     public byte L
     {
-        get => (byte)(_hl & 0x00FF);
-        set => _hl = (ushort)((_hl & 0xFF00) | value);
+        get => R8LookupTable[5];
+        set => R8LookupTable[5] = value;
     }
 
     public void SetRegisterByR16(int r16, ushort value)
@@ -195,7 +212,7 @@ public class CpuRegister
                 break;
         }
     }
-    
+
     public ushort GetRegisterValueByR16(int r16)
     {
         switch (r16)
@@ -212,11 +229,10 @@ public class CpuRegister
                 throw new ArgumentOutOfRangeException(nameof(r16), r16, "Invalid r16 value");
         }
     }
-    
+
     public ushort GetRegisterValueByR16Mem(int r16mem)
     {
         ushort value = 0;
-
         switch (r16mem)
         {
             case 0:
@@ -238,49 +254,17 @@ public class CpuRegister
 
     public byte GetRegisterValueByR8(byte r8)
     {
-        return r8 switch
-        {
-            0 => B,
-            1 => C,
-            2 => D,
-            3 => E,
-            4 => H,
-            5 => L,
-            6 => throw new ArgumentOutOfRangeException(nameof(r8), "Cannot access memory directly with this method, use MemoryController instead"),
-            7 => A,
-            _ => throw new ArgumentOutOfRangeException(nameof(r8), r8, "Invalid r8 value")
-        };
+        if (r8 is > 7 or 6)
+            throw new ArgumentOutOfRangeException(nameof(r8), r8, "Invalid r8 value");
+
+        return R8LookupTable[r8];
     }
 
     public void SetRegisterByR8(byte r8, byte value)
     {
-        switch (r8)
-        {
-            case 0:
-                B = value;
-                break;
-            case 1:
-                C = value;
-                break;
-            case 2:
-                D = value;
-                break;
-            case 3:
-                E = value;
-                break;
-            case 4:
-                H = value;
-                break;
-            case 5:
-                L = value;
-                break;
-            case 6:
-                throw new ArgumentOutOfRangeException(nameof(r8), "Cannot access memory directly with this method, use MemoryController instead");
-            case 7:
-                A = value;
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(r8), r8, "Invalid r8 value");
-        }
+        if (r8 is > 7 or 6)
+            throw new ArgumentOutOfRangeException(nameof(r8), r8, "Invalid r8 value");
+
+        R8LookupTable[r8] = value;
     }
 }

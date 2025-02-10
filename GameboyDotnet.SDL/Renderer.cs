@@ -17,7 +17,9 @@ public static class Renderer
     private static readonly SDL_Color DarkGray = new() { r = 85, g = 85, b = 85, a = 255 };
     private static readonly SDL_Color Black = new() { r = 0, g = 0, b = 0, a = 255 };
     
-    public static void RenderStates(ref nint renderer, Lcd lcd, ref nint window)
+    private static IntPtr _font;
+    
+    public static void RenderStates(ref IntPtr renderer, Lcd lcd, ref IntPtr window, string fpsText)
     {
         try
         {
@@ -33,10 +35,22 @@ public static class Renderer
             // Calculate scaled window size
             int scaledWidth = (int)(ScreenWidth * scale);
             int scaledHeight = (int)(ScreenHeight * scale);
-
-            SDL_SetRenderDrawColor(renderer, White.r, White.g, White.b, 255); // Clear the renderer
-            SDL_RenderClear(renderer);
+            
             SDL_RenderSetLogicalSize(renderer, scaledWidth, scaledHeight);
+            SDL_SetRenderDrawColor(renderer, DarkGray.r, DarkGray.g, DarkGray.b, 128); // Clear the renderer
+            SDL_RenderClear(renderer); //Clear everything with black color
+            
+            // Draw the Gameboy screen area as a white rectangle
+            // Draw the Gameboy screen area as a white rectangle
+            SDL_Rect gameboyScreenRect = new SDL_Rect
+            {
+                x = 0,
+                y = 0,
+                w = scaledWidth,
+                h = scaledHeight
+            };
+            SDL_SetRenderDrawColor(renderer, White.r, White.g, White.b, White.a);
+            SDL_RenderFillRect(renderer, ref gameboyScreenRect);
 
             // Draw the scanlines
             for (int y = 0; y < ScreenHeight; y++)
@@ -66,6 +80,9 @@ public static class Renderer
                 }
             }
 
+            // Display FPS
+            RenderText(ref renderer, fpsText, 15, 50);
+
             SDL_RenderPresent(renderer); // Render the frame;
         }
         catch (Exception ex)
@@ -89,7 +106,7 @@ public static class Renderer
             h: emulatorSettings.WindowHeight,
             SDL_WindowFlags.SDL_WINDOW_SHOWN
             | SDL_WindowFlags.SDL_WINDOW_RESIZABLE
-            | SDL_WindowFlags.SDL_WINDOW_OPENGL
+            | SDL_WindowFlags.SDL_WINDOW_VULKAN
             );
 
         if (window == IntPtr.Zero)
@@ -112,6 +129,17 @@ public static class Renderer
             logger.LogCritical("There was an issue initializing SDL2_Image {SDL_image.IMG_GetError()}",
                 SDL_image.IMG_GetError());
         }
+        
+        if(SDL_ttf.TTF_Init() < 0)
+        {
+            logger.LogCritical("There was an issue initializing SDL2_TTF {SDL_ttf.TTF_GetError()}", SDL_ttf.TTF_GetError());
+        }
+        
+        _font = SDL_ttf.TTF_OpenFont("arial.ttf", 16); // Load font
+        if (_font == IntPtr.Zero)
+        {
+            logger.LogCritical("Failed to load font: {SDL_ttf.TTF_GetError()}", SDL_ttf.TTF_GetError());
+        }
 
         return (renderer, window);
     }
@@ -121,5 +149,30 @@ public static class Renderer
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         SDL_Quit();
+    }
+
+    public static void RenderText(ref IntPtr renderer, string text, int x, int y)
+    {
+        if (_font == IntPtr.Zero) return; // Ensure font is loaded
+
+        SDL_Color redColor = new SDL_Color { r = 255, g = 0, b = 0, a = 255 };
+
+        IntPtr surface = SDL_ttf.TTF_RenderText_Solid(_font, text, redColor);
+        if (surface == IntPtr.Zero) return;
+
+        IntPtr texture = SDL_CreateTextureFromSurface(renderer, surface);
+        if (texture == IntPtr.Zero)
+        {
+            SDL_FreeSurface(surface);
+            return;
+        }
+
+        SDL_QueryTexture(texture, out _, out _, out int textWidth, out int textHeight);
+        SDL_Rect textRect = new SDL_Rect { x = x, y = y, w = textWidth*2, h = textHeight*2 };
+
+        SDL_RenderCopy(renderer, texture, IntPtr.Zero, ref textRect);
+
+        SDL_FreeSurface(surface);
+        SDL_DestroyTexture(texture);
     }
 }

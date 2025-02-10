@@ -62,16 +62,7 @@
       <None Update="Tests\Roms\dmg-acid2.gb">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="Tests\Roms\Super Mario Land 2 - 6 Golden Coins.gb">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Roms\Tetris.gb">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Roms\Pokemon Red.gb">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Update="Tests\Roms\Legend of Zelda, The - Link's Awakening.gb">
+      <None Update="Arial.ttf">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>

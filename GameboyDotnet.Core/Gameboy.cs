@@ -14,7 +14,8 @@ public partial class Gameboy
     public Ppu Ppu { get; }
     public MainTimer TimaTimer { get; } = new();
     public DividerTimer DivTimer { get; } = new();
-    public bool IsDebugMode { get; private set; }
+    public bool IsFrameLimiterEnabled;
+    internal bool IsMemoryDumpingActive;
 
     public Gameboy(ILogger<Gameboy> logger)
     {
@@ -31,13 +32,21 @@ public partial class Gameboy
 
     public Task RunAsync(bool frameLimitEnabled, CancellationToken ctsToken)
     {
+        IsFrameLimiterEnabled = frameLimitEnabled;
         var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks;
         
         var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
+        var frameCounter = 0;
 
         while (!ctsToken.IsCancellationRequested)
         {
+            if (IsMemoryDumpingActive && frameCounter == 0)
+            {
+                Task.Delay(TimeSpan.FromSeconds(1), ctsToken).RunSynchronously();
+                continue;
+            }
+
             try
             {
                 var startTime = Stopwatch.GetTimestamp();
@@ -51,23 +60,20 @@ public partial class Gameboy
                     currentCycles += tStates;
                 }
                 UpdateJoypadState();
-
+                
+                frameCounter++;
                 currentCycles -= cyclesPerFrame;
                 DisplayUpdated.Invoke(this, EventArgs.Empty);
-
-                // if (frameLimitEnabled)
-                // {
-                //     var remainingTime = targetTime - Stopwatch.GetTimestamp();
-                //     if (remainingTime > 0)
-                //     {
-                //         SpinWait.SpinUntil(() => Stopwatch.GetTimestamp() >= targetTime);
-                //     }
-                // }
-                if(frameLimitEnabled)
+                if(frameCounter % 60 == 0)
+                {
+                    frameCounter = 0;
+                }
+                
+                if(IsFrameLimiterEnabled)
                 {
                     while (Stopwatch.GetTimestamp() < targetTime)
                     {
-                        //Wait in a tight loop for until target time is reached
+                        //Wait in a tight loop until the target time is reached
                     }
                 }
             }
@@ -81,10 +87,9 @@ public partial class Gameboy
         return Task.CompletedTask;
     }
 
-    public void SwitchDebugMode()
+    public void SwitchFramerateLimiter()
     {
-        _logger.LogInformation("Switching debug mode to {IsDebugMode}", !IsDebugMode);
-        IsDebugMode = !IsDebugMode;
-        _logger = LoggerHelper.GetLogger<Gameboy>(IsDebugMode ? LogLevel.Debug : LogLevel.Information);
+        IsFrameLimiterEnabled = !IsFrameLimiterEnabled;
+        _logger.LogWarning("Frame limiter is now '{IsFrameLimiterEnabled}'", IsFrameLimiterEnabled ? "enabled" : "disabled");
     }
 }

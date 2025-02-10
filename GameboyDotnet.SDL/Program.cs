@@ -1,6 +1,8 @@
-﻿using GameboyDotnet;
+﻿using System.Diagnostics;
+using GameboyDotnet;
 using GameboyDotnet.Common;
 using GameboyDotnet.SDL;
+using GameboyDotnet.SDL.SaveStates;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
 
@@ -36,8 +38,15 @@ gameboy.DisplayUpdated += (_, _) =>
 {
     Interlocked.Increment(ref framesRequested);
 };
+gameboy.FrameLimiterSwitched += (_, _) =>
+{
+    framesRequested = 0;
+};
 
 Task.Run(() => gameboy.RunAsync(emulatorSettings.FrameLimitEnabled, cts.Token));
+
+int frameCounter = 0;
+long lastFpsUpdate = Stopwatch.GetTimestamp();
 
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)
@@ -47,10 +56,14 @@ while (running && !cts.IsCancellationRequested)
         switch (e.type)
         {
             case SDL_EventType.SDL_KEYDOWN:
+                if (e.key.keysym.sym is SDL_Keycode.SDLK_F5)
+                    SaveDumper.SaveState(gameboy, romPath);
+                if (e.key.keysym.sym is SDL_Keycode.SDLK_F8)
+                    SaveDumper.LoadState(gameboy, romPath);
+                if (e.key.keysym.sym is SDL_Keycode.SDLK_p)
+                    gameboy.SwitchFramerateLimiter();
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyPressed))
                     gameboy.PressButton(keyPressed);
-                if (e.key.keysym.sym is SDL_Keycode.SDLK_p)
-                    gameboy.SwitchDebugMode();
                 break;
             case SDL_EventType.SDL_KEYUP:
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyReleased))
@@ -63,11 +76,19 @@ while (running && !cts.IsCancellationRequested)
                 break;
         }
     }
-
+    
     if (framesRequested > 0)
     {
-        Interlocked.Decrement(ref framesRequested);
-        Renderer.RenderStates(ref renderer, gameboy.Ppu.Lcd, ref window);
+        long now = Stopwatch.GetTimestamp();
+        if ((now - lastFpsUpdate) >= TimeSpan.FromSeconds(1).Ticks) // 1 second has passed
+        {
+            lastFpsUpdate = now;
+            framesRequested = 0;
+        }
+        
+        string bufferedFramesText = $"Buffered frames: {framesRequested}";
+        Renderer.RenderStates(ref renderer, gameboy.Ppu.Lcd, ref window, bufferedFramesText);
+        framesRequested--;
     }
 }
 

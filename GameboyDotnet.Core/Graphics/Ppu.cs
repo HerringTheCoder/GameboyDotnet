@@ -101,15 +101,17 @@ public class Ppu(MemoryController memoryController)
 
     private void RenderObjects()
     {
+        var oamMemoryView = memoryController.Oam.MemorySpaceView;
         var objectsCount = 0;
-        for (ushort oamAddress = BankAddress.OamStart;
-             oamAddress <= BankAddress.OamEnd;
-             oamAddress += 4)
+        for (ushort oamOffset = 0;
+             oamOffset < 160;
+             oamOffset += 4)
         {
-            var y = memoryController.ReadByte(oamAddress) - 16;
-            var x = memoryController.ReadByte(oamAddress.Add(1)) - 8;
-            var tileNumber = memoryController.ReadByte(oamAddress.Add(2));
-            var attributes = ExtractObjectAttributes(ref oamAddress);
+            var y = oamMemoryView[oamOffset] - 16;
+            var x = oamMemoryView[oamOffset.Add(1)] - 8;
+            var tileNumber = oamMemoryView[oamOffset.Add(2)];
+            var objAttributes = oamMemoryView[oamOffset.Add(3)];
+            var attributes = ExtractObjectAttributes(ref objAttributes);
             var objSize = (byte)Lcd.ObjSize;
             const byte spriteWidth = 8;
 
@@ -221,10 +223,8 @@ public class Ppu(MemoryController memoryController)
     }
     
     private (bool objToBackgroundPriority, bool yFlipped, bool xFlipped, byte palette) ExtractObjectAttributes(
-        ref ushort oamAddress)
+        ref byte objectAttributes)
     {
-        var objectAttributes = memoryController.ReadByte(oamAddress.Add(3));
-
         return (
             objectAttributes.IsBitSet(7),
             objectAttributes.IsBitSet(6),
