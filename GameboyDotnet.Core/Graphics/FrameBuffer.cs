@@ -8,7 +8,7 @@ public class FrameBuffer
     private readonly ConcurrentQueue<byte[,]> _frameQueue = new();
     private int _frameCount = 0;
     private readonly Stopwatch _stopwatch = new();
-    public double SpeedPercentage = 0;
+    public double Fps = 0;
     
     public FrameBuffer()
     {
@@ -24,8 +24,7 @@ public class FrameBuffer
         
         if (_stopwatch.ElapsedMilliseconds >= 1000)
         {
-            int fps = Interlocked.Exchange(ref _frameCount, 0);
-            SpeedPercentage = fps / 60.0 * 100.0;
+            Fps = Interlocked.Exchange(ref _frameCount, 0);
             _stopwatch.Restart();
         }
     }

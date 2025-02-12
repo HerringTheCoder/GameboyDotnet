@@ -68,6 +68,9 @@
       <None Update="Tests\Roms\Pokemon Red.gb">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Update="Tests\Roms\Pokemon - Red Version.gb">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 
     <ItemGroup>

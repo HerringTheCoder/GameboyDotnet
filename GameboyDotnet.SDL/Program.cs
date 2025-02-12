@@ -39,8 +39,6 @@ gameboy.ExceptionOccured += (_, _) =>
 
 Task.Run(() => gameboy.RunAsync(emulatorSettings.FrameLimitEnabled, cts.Token));
 
-long lastFpsUpdate = Stopwatch.GetTimestamp();
-
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)
 {
@@ -49,12 +47,18 @@ while (running && !cts.IsCancellationRequested)
         switch (e.type)
         {
             case SDL_EventType.SDL_KEYDOWN:
-                if (e.key.keysym.sym is SDL_Keycode.SDLK_F5)
-                    gameboy.IsMemoryDumpRequested = true;
-                if (e.key.keysym.sym is SDL_Keycode.SDLK_F8)
-                    SaveDumper.LoadState(gameboy, romPath);
-                if (e.key.keysym.sym is SDL_Keycode.SDLK_p)
-                    gameboy.SwitchFramerateLimiter();
+                switch (e.key.keysym.sym)
+                {
+                    case SDL_Keycode.SDLK_F5:
+                        gameboy.IsMemoryDumpRequested = true;
+                        break;
+                    case SDL_Keycode.SDLK_F8:
+                        SaveDumper.LoadState(gameboy, romPath);
+                        break;
+                    case SDL_Keycode.SDLK_p:
+                        gameboy.SwitchFramerateLimiter();
+                        break;
+                }
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyPressed))
                     gameboy.PressButton(keyPressed);
                 break;
@@ -72,8 +76,7 @@ while (running && !cts.IsCancellationRequested)
     
     if(gameboy.Ppu.FrameBuffer.TryDequeueFrame(out var frame))
     {
-        //Format double to string with 1 decimal place
-        string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.SpeedPercentage:0.0}% / {gameboy.Ppu.FrameBuffer.SpeedPercentage * 0.6:0} FPS";
+        string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps/ 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS";
         Renderer.RenderStates(ref renderer, ref window, frame!, bufferedFramesText);
     }
 }
