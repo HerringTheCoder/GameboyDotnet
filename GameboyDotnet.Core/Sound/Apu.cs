@@ -1,8 +1,10 @@
-﻿namespace GameboyDotnet.Sound;
+﻿using GameboyDotnet.Memory;
 
-public class Apu
+namespace GameboyDotnet.Sound;
+
+public class Apu(MemoryController memoryController)
 {
-    public void Step(ref byte tStates)
+    public void PushApuCycles(ref byte tStates)
     {
         
     }

@@ -2,6 +2,7 @@
 using GameboyDotnet.Common;
 using GameboyDotnet.Graphics;
 using GameboyDotnet.Processor;
+using GameboyDotnet.Sound;
 using GameboyDotnet.Timers;
 using Microsoft.Extensions.Logging;
 
@@ -12,8 +13,9 @@ public partial class Gameboy
     private ILogger<Gameboy> _logger;
     public Cpu Cpu { get; }
     public Ppu Ppu { get; }
-    public MainTimer TimaTimer { get; } = new();
-    public DividerTimer DivTimer { get; } = new();
+    public Apu Apu { get; }
+    public MainTimer TimaTimer { get; }
+    public DividerTimer DivTimer { get; }
     public bool IsFrameLimiterEnabled;
     public bool IsMemoryDumpRequested;
 
@@ -22,6 +24,9 @@ public partial class Gameboy
         _logger = logger;
         Cpu = new Cpu(logger);
         Ppu = new Ppu(Cpu.MemoryController);
+        Apu = new Apu(Cpu.MemoryController);
+        TimaTimer = new MainTimer(Cpu.MemoryController);
+        DivTimer = new DividerTimer(Cpu.MemoryController);
     }
 
     public void LoadProgram(FileStream stream)
@@ -33,7 +38,7 @@ public partial class Gameboy
     public Task RunAsync(bool frameLimitEnabled, CancellationToken ctsToken)
     {
         IsFrameLimiterEnabled = frameLimitEnabled;
-        var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks;
+        var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks; //~59.7 Hz
         
         var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
@@ -44,12 +49,14 @@ public partial class Gameboy
             {
                 var startTime = Stopwatch.GetTimestamp();
                 var targetTime = startTime + frameTimeTicks;
+                
                 while (currentCycles < cyclesPerFrame)
                 {
                     var tStates = Cpu.ExecuteNextOperation();
                     Ppu.PushPpuCycles(tStates);
-                    TimaTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
-                    DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
+                    TimaTimer.CheckAndIncrementTimer(ref tStates);
+                    DivTimer.CheckAndIncrementTimer(ref tStates);
+                    // Apu.PushApuCycles(ref tStates);
                     currentCycles += tStates;
                 }
                 UpdateJoypadState();

@@ -4,13 +4,14 @@ using GameboyDotnet.Memory;
 
 namespace GameboyDotnet.Timers;
 
-public class MainTimer
+public class MainTimer(MemoryController memoryController)
 {
     private int _tStatesCounter;
+    private const int TimaControlIORegisterOffset = 0x07;
     
-    internal void CheckAndIncrementTimer(ref byte durationTStates, MemoryController memoryController)
+    internal void CheckAndIncrementTimer(ref byte durationTStates)
     {
-        var timerControl = memoryController.ReadByte(Constants.TACRegister);
+        var timerControl = memoryController.IoRegisters.MemorySpaceView[TimaControlIORegisterOffset];
         if (!timerControl.IsBitSet(2)) //Timer is disabled, do nothing
             return;
         
