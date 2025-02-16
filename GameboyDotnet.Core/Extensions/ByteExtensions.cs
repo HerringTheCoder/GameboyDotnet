@@ -20,6 +20,7 @@ public static class ByteExtensions
     public static byte ClearBit(this byte b, int bitIndex)
         => (byte)(b & ~(1 << bitIndex));
     
+    
     [Pure]
     public static bool IsBitSet(this byte b, int bitIndex)
         => (b & (1 << bitIndex)) != 0;

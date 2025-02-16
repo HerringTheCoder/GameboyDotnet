@@ -52,7 +52,6 @@ public class Ppu(MemoryController memoryController)
                 {
                     PushScanlineToBuffer();
                 }
-
                 break;
             case PpuMode.HBlankMode0:
                 if (_cyclesCounter >= Cycles.HBlankMode0CyclesThreshold)
@@ -60,7 +59,6 @@ public class Ppu(MemoryController memoryController)
                     _ly++;
                     _cyclesCounter -= Cycles.HBlankMode0CyclesThreshold;
                 }
-
                 break;
             case PpuMode.VBlankMode1:
                 if (_cyclesCounter >= Cycles.VBlankMode1CyclesThreshold)
@@ -72,7 +70,6 @@ public class Ppu(MemoryController memoryController)
                         _ly = 0;
                     }
                 }
-
                 break;
         }
         

@@ -12,6 +12,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - ADD A, {getSourceR8:X}", opCode, r8);
+        
         var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
@@ -29,6 +30,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - ADC A, {getSourceR8:X}", opCode, r8);
+        
         var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
@@ -46,6 +48,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - SUB A, {getSourceR8:X}", opCode, r8);
+        
         var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
@@ -62,14 +65,15 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - SBC A, {getSourceR8:X}", opCode, r8);
-        var value = r8 == 0b110
+        
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         var carryFlag = (byte)(Register.CarryFlag ? 1 : 0);
         Set8BitSubtractCompareFlags(Register.A, value, carryFlag);
         Register.A = Register.A.Subtract(value).Subtract(carryFlag);
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -80,13 +84,13 @@ public partial class Cpu
         if (_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - AND A, {r8R8:X}", opCode, r8);
         
-        var value = r8 == 0b110
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Register.A = (byte)(Register.A & value);
         Set8BitAndFlags();
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     /// <summary>
@@ -96,6 +100,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - XOR A, {r8R8:X}", opCode, r8);
+        
         var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
@@ -112,19 +117,21 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - OR A, {r8R8:X}", opCode, r8);
-        var value = r8 == 0b110
+        
+        var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);
 
         Register.A = (byte)(Register.A | value);
         Set8BitOrXorFlags();
-        return (1, (byte)(r8 == 0b110 ? 8 : 4));
+        return (1, (byte)(r8 == Constants.R8_HL_Index ? 8 : 4));
     }
 
     private (byte instructionBytesLength, byte durationTStates) CompareR8WithA(ref byte opCode, byte r8)
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - CP A, {r8R8:X}", opCode, r8);
+        
         var value = r8 == Constants.R8_HL_Index
             ? MemoryController.ReadByte(Register.HL)
             : Register.GetRegisterValueByR8(r8);

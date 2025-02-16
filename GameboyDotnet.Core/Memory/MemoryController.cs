@@ -65,7 +65,7 @@ public class MemoryController
                 break;
         }
     }
-
+    
     public byte ReadByte(ushort address)
     {
         if (address is >= 0xE000 and <= 0xFDFF)
@@ -159,6 +159,7 @@ public class MemoryController
             WriteByte(i, ReadByte(sourceAddress++));
         }
     }
+
 
     private void InitializeMemoryMap()
     {
