@@ -1,12 +1,11 @@
 ﻿using System.Diagnostics;
-using GameboyDotnet.Graphics;
 using Microsoft.Extensions.Logging;
 using SDL2;
 using static SDL2.SDL;
 
 namespace GameboyDotnet.SDL;
 
-public static class Renderer
+public static class SdlRenderer
 {
     private const int ScreenWidth = 160;
     private const int ScreenHeight = 144;
@@ -94,7 +93,7 @@ public static class Renderer
 
     public static (nint renderer, nint window) InitializeRendererAndWindow(ILogger<Gameboy> logger, EmulatorSettings emulatorSettings)
     {
-        if (SDL_Init(SDL_INIT_VIDEO) < 0)
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
         {
             logger.LogCritical("There was an issue initializing SDL. {SDL_GetError()}", SDL_GetError());
         }

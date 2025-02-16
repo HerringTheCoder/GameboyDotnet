@@ -14,8 +14,8 @@ public partial class Gameboy
     public Cpu Cpu { get; }
     public Ppu Ppu { get; }
     public Apu Apu { get; }
-    public MainTimer TimaTimer { get; }
-    public DividerTimer DivTimer { get; }
+    public TimaTimer TimaTimer { get; }
+    public DivTimer DivTimer { get; }
     public bool IsFrameLimiterEnabled;
     public bool IsMemoryDumpRequested;
 
@@ -25,8 +25,8 @@ public partial class Gameboy
         Cpu = new Cpu(logger);
         Ppu = new Ppu(Cpu.MemoryController);
         Apu = new Apu(Cpu.MemoryController);
-        TimaTimer = new MainTimer(Cpu.MemoryController);
-        DivTimer = new DividerTimer(Cpu.MemoryController);
+        TimaTimer = new TimaTimer(Cpu.MemoryController);
+        DivTimer = new DivTimer(Cpu.MemoryController);
     }
 
     public void LoadProgram(FileStream stream)
@@ -56,7 +56,7 @@ public partial class Gameboy
                     Ppu.PushPpuCycles(tStates);
                     TimaTimer.CheckAndIncrementTimer(ref tStates);
                     DivTimer.CheckAndIncrementTimer(ref tStates);
-                    // Apu.PushApuCycles(ref tStates);
+                    Apu.PushApuCycles(ref tStates);
                     currentCycles += tStates;
                 }
                 UpdateJoypadState();

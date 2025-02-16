@@ -21,9 +21,12 @@ var romPath = Path.IsPathRooted(emulatorSettings.RomPath)
     : Path.Combine(Directory.GetCurrentDirectory(), emulatorSettings.RomPath);
 
 //Initialize SDL renderer and window
-var (renderer, window) = Renderer.InitializeRendererAndWindow(logger, emulatorSettings);
+var (renderer, window) = SdlRenderer.InitializeRendererAndWindow(logger, emulatorSettings);
 
 var gameboy = new Gameboy(logger);
+var audioPlayer = new SdlAudio(gameboy.Apu.AudioBuffer);
+audioPlayer.Initialize();
+
 var stream = File.OpenRead(romPath);
 gameboy.LoadProgram(stream);
 
@@ -69,7 +72,7 @@ while (running && !cts.IsCancellationRequested)
             case SDL_EventType.SDL_QUIT:
                 cts.Cancel();
                 running = false;
-                Renderer.Destroy(renderer, window);
+                SdlRenderer.Destroy(renderer, window);
                 break;
         }
     }
@@ -77,8 +80,9 @@ while (running && !cts.IsCancellationRequested)
     if(gameboy.Ppu.FrameBuffer.TryDequeueFrame(out var frame))
     {
         string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps/ 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS";
-        Renderer.RenderStates(ref renderer, ref window, frame!, bufferedFramesText);
+        SdlRenderer.RenderStates(ref renderer, ref window, frame!, bufferedFramesText);
     }
 }
 
-Renderer.Destroy(renderer, window);
+audioPlayer.Cleanup();
+SdlRenderer.Destroy(renderer, window);

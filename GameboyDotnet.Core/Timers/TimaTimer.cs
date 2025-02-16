@@ -4,7 +4,7 @@ using GameboyDotnet.Memory;
 
 namespace GameboyDotnet.Timers;
 
-public class MainTimer(MemoryController memoryController)
+public class TimaTimer(MemoryController memoryController)
 {
     private int _tStatesCounter;
     private const int TimaControlIORegisterOffset = 0x07;
