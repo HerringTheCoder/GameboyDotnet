@@ -1,4 +1,4 @@
-# Experimental Gameboy and Gameboy Color emulator written in C#
+# GameboyDotnet - Experimental Gameboy and Gameboy Color emulator written in Dotnet .NET C#
 
 Checklist:
 -  ~~Memory mapping with switchable banks~~
