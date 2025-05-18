@@ -23,8 +23,8 @@ public class SdlAudio
         {
             freq = 48000,
             format = AUDIO_F32SYS, //TODO: Check which format should be set
-            channels = 1, //TODO: Mono or stereo?
-            samples = 512,
+            channels = 2,
+            samples = 1024,
             callback = _audioCallbackDelegate
         };
 
@@ -33,7 +33,7 @@ public class SdlAudio
             device: null, 
             iscapture: 0, 
             ref desiredSpec, 
-            out _, 
+            out _,
             allowed_changes: 0);
         
         if (_audioDevice <= 0)
@@ -41,27 +41,28 @@ public class SdlAudio
             Console.WriteLine($"SDL OpenAudioDevice Error: {SDL_GetError()}");
             return;
         }
-
+        
         SDL_PauseAudioDevice(_audioDevice, 0);
     }
-
+    
     private void AudioCallbackHandler(IntPtr userdata, IntPtr stream, int len)
     {
         int sampleCount = len / sizeof(float);
         float[] samples = new float[sampleCount];
-
-        for (int i = 0; i < sampleCount; i++)
+        int offset = 0;
+        
+        while(offset < sampleCount)
         {
             if (!_audioBuffer.TryDequeueSamples(out float[]? sampleBatch) || sampleBatch == null)
             {
-                samples[i] = 0.0f;
+                break;
             }
-            else
-            {
-                samples[i] = sampleBatch[i % sampleBatch.Length];
-            }
-        }
 
+            int samplesToCopy = Math.Min(sampleBatch.Length, sampleCount - offset);
+            Array.Copy(sampleBatch, 0, samples, offset, samplesToCopy);
+            offset += samplesToCopy;
+        }
+        
         Marshal.Copy(samples, 0, stream, samples.Length);
     }
 

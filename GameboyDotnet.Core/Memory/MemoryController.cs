@@ -2,6 +2,7 @@
 using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory.BuildingBlocks;
 using GameboyDotnet.Memory.Mbc;
+using GameboyDotnet.Sound;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet.Memory;
@@ -10,31 +11,23 @@ public class MemoryController
 {
     private readonly FixedBank[] _memoryMap = new FixedBank[0xFFFF + 1];
     public SwitchableBank RomBankNn;
-
-    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192,
-        numberOfBanks: 2);
-
+    public SwitchableBank Vram = new(BankAddress.VramStart, BankAddress.VramEnd, nameof(Vram), bankSizeInBytes: 8192, numberOfBanks: 2);
     public readonly FixedBank Wram0 = new(BankAddress.Wram0Start, BankAddress.Wram0End, nameof(Wram0));
-
-    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start, BankAddress.Wram1End, nameof(Wram1),
-        bankSizeInBytes: 4096, numberOfBanks: 8);
-
+    public readonly SwitchableBank Wram1 = new(BankAddress.Wram1Start, BankAddress.Wram1End, nameof(Wram1), bankSizeInBytes: 4096, numberOfBanks: 8);
     public readonly FixedBank Oam = new(BankAddress.OamStart, BankAddress.OamEnd, nameof(Oam));
     public readonly FixedBank NotUsable = new(BankAddress.NotUsableStart, BankAddress.NotUsableEnd, nameof(NotUsable));
     public readonly IoBank IoRegisters;
     public readonly FixedBank HRam = new(BankAddress.HRamStart, BankAddress.HRamEnd, nameof(HRam));
 
-    public readonly FixedBank InterruptEnableRegister = new(
-        BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd,
-        nameof(InterruptEnableRegister));
+    public readonly FixedBank InterruptEnableRegister = new(BankAddress.InterruptEnableRegisterStart, BankAddress.InterruptEnableRegisterEnd, nameof(InterruptEnableRegister));
 
     private readonly ILogger<Gameboy> _logger;
 
-    public MemoryController(ILogger<Gameboy> logger)
+    public MemoryController(ILogger<Gameboy> logger, Apu apu)
     {
         _logger = logger;
         RomBankNn = new Mbc0Mock(nameof(RomBankNn), bankSizeInBytes: 16384, numberOfBanks: 2);
-        IoRegisters = new IoBank(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters), logger);
+        IoRegisters = new IoBank(BankAddress.IoRegistersStart, BankAddress.IoRegistersEnd, nameof(IoRegisters), logger, apu);
         InitializeMemoryMap();
         InitializeBootStates();
     }
@@ -44,7 +37,7 @@ public class MemoryController
         //Load first bank to read cartridge header
         var bank0 = new byte[16384];
         var currentPosition = stream.Read(bank0, 0, 16384);
-        RomBankNn = MbcFactory.CreateMbc(bank0[0x147], bank0[0x148], bank0[0x149]);
+        RomBankNn = MbcFactory.CreateMbc(cartridgeType: bank0[0x147], romSizeByte: bank0[0x148], ramSize: bank0[0x149]);
         InitializeMemoryMap();
 
         //Load the first bank
@@ -185,33 +178,33 @@ public class MemoryController
 
     private void InitializeBootStates()
     {
-        WriteByte(Constants.JoypadRegister, 0xCF);
-        WriteByte(0xFF02, 0x7E);
-        WriteByte(0xFF04, 0xAB); //18?
-        WriteByte(0xFF07, 0xF8);
-        WriteByte(0xFF0F, 0xE1);
-        WriteByte(0xFF10, 0x80);
-        WriteByte(0xFF11, 0xBF);
-        WriteByte(0xFF12, 0xF3);
-        WriteByte(0xFF13, 0xFF);
-        WriteByte(0xFF14, 0xBF);
-        WriteByte(0xFF16, 0x3F);
-        WriteByte(0xFF18, 0xFF);
-        WriteByte(0xFF19, 0xBF);
-        WriteByte(0xFF1A, 0x7F);
-        WriteByte(0xFF1B, 0xFF);
-        WriteByte(0xFF1C, 0x9F);
-        WriteByte(0xFF1D, 0xFF);
-        WriteByte(0xFF1E, 0xBF);
-        WriteByte(0xFF20, 0xFF);
-        WriteByte(0xFF23, 0xBF);
-        WriteByte(0xFF24, 0x77);
-        WriteByte(0xFF25, 0xF3);
-        WriteByte(0xFF26, 0xF1);
-        WriteByte(0xFF40, 0x91);
-        WriteByte(0xFF41, 0x01);
-        WriteByte(0xFF44, 0x90);
-        WriteByte(0xFF47, 0xFC);
-        WriteByte(0xFF4D, 0xFF);
+        WriteByte(address: Constants.JoypadRegister, value: 0xCF);
+        WriteByte(address: 0xFF02, value: 0x7E);
+        WriteByte(address: 0xFF04, value: 0xAB);
+        WriteByte(address: 0xFF07, value: 0xF8);
+        WriteByte(address: 0xFF0F, value: 0xE1);
+        WriteByte(address: 0xFF10, value: 0x80);
+        WriteByte(address: 0xFF11, value: 0xBF);
+        WriteByte(address: 0xFF12, value: 0xF3);
+        WriteByte(address: 0xFF13, value: 0xFF);
+        WriteByte(address: 0xFF14, value: 0xBF);
+        WriteByte(address: 0xFF16, value: 0x3F);
+        WriteByte(address: 0xFF18, value: 0xFF);
+        WriteByte(address: 0xFF19, value: 0xBF);
+        WriteByte(address: 0xFF1A, value: 0x7F);
+        WriteByte(address: 0xFF1B, value: 0xFF);
+        WriteByte(address: 0xFF1C, value: 0x9F);
+        WriteByte(address: 0xFF1D, value: 0xFF);
+        WriteByte(address: 0xFF1E, value: 0xBF);
+        WriteByte(address: 0xFF20, value: 0xFF);
+        WriteByte(address: 0xFF23, value: 0xBF);
+        WriteByte(address: 0xFF24, value: 0x77);
+        WriteByte(address: 0xFF25, value: 0xF3);
+        WriteByte(address: 0xFF26, value: 0xF1);
+        WriteByte(address: 0xFF40, value: 0x91);
+        WriteByte(address: 0xFF41, value: 0x01);
+        WriteByte(address: 0xFF44, value: 0x90);
+        WriteByte(address: 0xFF47, value: 0xFC);
+        WriteByte(address: 0xFF4D, value: 0xFF);
     }
-}
+} 

@@ -38,6 +38,7 @@ public partial class Cpu
         {
             return Halt();
         }
+        
         if (destinationR8 == Constants.R8_HL_Index)
         {
             MemoryController.WriteByte(Register.HL, Register.GetRegisterValueByR8(sourceR8));

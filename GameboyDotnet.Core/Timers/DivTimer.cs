@@ -11,8 +11,9 @@ public class DivTimer(MemoryController memoryController)
         _dividerCycleCounter += tStates;
         
         if (_dividerCycleCounter >= Cycles.DividerCycles)
-        {
+        { 
             _dividerCycleCounter -= Cycles.DividerCycles;
+            
             memoryController.IncrementByte(Constants.DIVRegister);
         }
     }

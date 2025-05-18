@@ -1,6 +1,7 @@
 ﻿using GameboyDotnet.Components.Cpu;
 using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory;
+using GameboyDotnet.Sound;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet.Processor;
@@ -12,10 +13,10 @@ public partial class Cpu
     public bool IsHalted { get; set; }
     private readonly ILogger<Gameboy> _logger;
 
-    public Cpu(ILogger<Gameboy> logger)
+    public Cpu(ILogger<Gameboy> logger, MemoryController memoryController)
     {
         _logger = logger;
-        MemoryController = new MemoryController(logger);
+        MemoryController = memoryController;
     }
 
     public byte ExecuteNextOperation()
@@ -27,7 +28,7 @@ public partial class Cpu
             return 1;
         }
 
-        var opCode = MemoryController.ReadByte(Register.PC);
+        var opCode = MemoryController.ReadByte(address: Register.PC);
         var operationBlock = (opCode & 0b11000000) >> 6;
 
         var operationSize = operationBlock switch

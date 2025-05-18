@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using GameboyDotnet.Common;
 using GameboyDotnet.Graphics;
+using GameboyDotnet.Memory;
 using GameboyDotnet.Processor;
 using GameboyDotnet.Sound;
 using GameboyDotnet.Timers;
@@ -11,6 +12,7 @@ namespace GameboyDotnet;
 public partial class Gameboy
 {
     private ILogger<Gameboy> _logger;
+    public MemoryController MemoryController { get; }
     public Cpu Cpu { get; }
     public Ppu Ppu { get; }
     public Apu Apu { get; }
@@ -22,11 +24,12 @@ public partial class Gameboy
     public Gameboy(ILogger<Gameboy> logger)
     {
         _logger = logger;
-        Cpu = new Cpu(logger);
-        Ppu = new Ppu(Cpu.MemoryController);
-        Apu = new Apu(Cpu.MemoryController);
-        TimaTimer = new TimaTimer(Cpu.MemoryController);
-        DivTimer = new DivTimer(Cpu.MemoryController);
+        Apu = new Apu();
+        MemoryController = new MemoryController(logger, Apu);
+        Cpu = new Cpu(logger, MemoryController);
+        Ppu = new Ppu(MemoryController);
+        TimaTimer = new TimaTimer(MemoryController);
+        DivTimer = new DivTimer(MemoryController);
     }
 
     public void LoadProgram(FileStream stream)
@@ -50,7 +53,7 @@ public partial class Gameboy
                 var startTime = Stopwatch.GetTimestamp();
                 var targetTime = startTime + frameTimeTicks;
                 
-                while (currentCycles < cyclesPerFrame)
+                while (currentCycles < cyclesPerFrame) //70224(Gameboy) or 140448 (Gameboy Color)
                 {
                     var tStates = Cpu.ExecuteNextOperation();
                     Ppu.PushPpuCycles(tStates);
@@ -59,6 +62,7 @@ public partial class Gameboy
                     Apu.PushApuCycles(ref tStates);
                     currentCycles += tStates;
                 }
+                
                 UpdateJoypadState();
                 currentCycles -= cyclesPerFrame;
                 Ppu.FrameBuffer.EnqueueFrame(Ppu.Lcd);

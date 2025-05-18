@@ -8,105 +8,160 @@ namespace GameboyDotnet.Sound;
 public class Apu
 {
     public AudioBuffer AudioBuffer { get; init; }
-    public SquareChannel2 SquareChannel2 { get; init; }
+    public SquareChannel1 SquareChannel1 { get; private set; }
+    public SquareChannel2 SquareChannel2 { get; private set; }
+    public bool IsAudioOn { get; private set; }
+    public byte LeftMasterVolume { get; private set; }
+    public byte RightMasterVolume { get; private set; }
 
-    private const int ApuTStatesPerCpuCycle = 4;
-    private byte _dividerRegister => _memoryController.IoRegisters.MemorySpaceView[0x04];
+
     private BitState _currentDividerRegisterBitState = BitState.Lo;
-    private int _apuTCyclesCounter = 0;
-    private int _divApuCounter = 0;
+    private int _frameSequencerCyclesTimer = 8192;
+    private int _frameSequencerPosition = 0;
+    private int _maxDigitalSumOfOutputPerChannel = 15 * 4; //4 channels, 0-15 volume level each
 
-    private readonly MemoryController _memoryController;
-
-    public Apu(MemoryController memoryController)
+    public Apu()
     {
         AudioBuffer = new AudioBuffer();
-        _memoryController = memoryController;
-
-        //SquareChannel1
-        SquareChannel2 = new SquareChannel2(memoryController, AudioBuffer);
-        //WaveChannel3
-        //NoiseChannel4
+        SquareChannel1 = new SquareChannel1(AudioBuffer);
+        SquareChannel2 = new SquareChannel2(AudioBuffer);
     }
+
+    private int SampleCounter = 87;
 
     public void PushApuCycles(ref byte tCycles)
     {
-        _apuTCyclesCounter += tCycles / ApuTStatesPerCpuCycle;
-
-        if (_apuTCyclesCounter > 2048)
+        for (int i = tCycles; i > 0; i--)
         {
-            _apuTCyclesCounter -= 2048;
-        }
+            StepFrameSequencer();
+            SquareChannel1.Step();
+            SquareChannel2.Step();
+            //WaveChannel.Step();
+            //NoiseChannel.Step();
 
-        var divApuTicked = DivFallingEdgeDetected();
-        if (divApuTicked)
-        {
-            StepFrameSequencer(ref tCycles);
-        }
+            SampleCounter--;
+            if(SampleCounter > 0)
+                continue;
+            
+            SampleCounter = 87; 
+            if (IsAudioOn)
+            {
+                int leftSum = 0;
+                int rightSum = 0;
 
-        SquareChannel2.Step(ref tCycles);
+                if (SquareChannel1.IsLeftSpeakerOn) leftSum += SquareChannel1.CurrentOutput;
+                if (SquareChannel1.IsRightSpeakerOn) rightSum += SquareChannel1.CurrentOutput;
+                if (SquareChannel2.IsLeftSpeakerOn) leftSum += SquareChannel2.CurrentOutput;
+                if (SquareChannel2.IsRightSpeakerOn) rightSum += SquareChannel2.CurrentOutput;
+                // if(WaveChannel.IsLeftSpeakerOn) leftSample += WaveChannel.CurrentSample;
+                // if(WaveChannel.IsRightSpeakerOn) rightSample += WaveChannel.CurrentSample;
+                // if(NoiseChannel.IsLeftSpeakerOn) leftSample += NoiseChannel.CurrentSample;
+                // if(NoiseChannel.IsRightSpeakerOn) rightSample += NoiseChannel.CurrentSample;
+                
+                //Normalize digital [0-15]*4 channels to [0-2f], then shift to [-1f, 1f]
+                float normalizedLeft = (float)leftSum / _maxDigitalSumOfOutputPerChannel *2f - 1f; 
+                float normalizedRight = (float)rightSum / _maxDigitalSumOfOutputPerChannel *2f - 1f;
+                AudioBuffer.EnqueueSample(leftSum, rightSum);
+            }
+        }
     }
 
     public void ResetFrameSequencer()
     {
     }
 
-    private void StepFrameSequencer(ref byte tCycles)
+    private void StepFrameSequencer()
     {
-        _divApuCounter = (_divApuCounter + 1) & 0b111; //Wrap to 7
+        _frameSequencerCyclesTimer--;
 
-        switch (_divApuCounter)
+        if (_frameSequencerCyclesTimer > 0)
+            return;
+
+        _frameSequencerCyclesTimer = 8192;
+
+        _frameSequencerPosition = (_frameSequencerPosition + 1) & 0b111; //Wrap to 7
+
+        switch (_frameSequencerPosition)
         {
             case 0:
-                UpdateLengthCounters(ref tCycles);
+                TickLengthCounters();
                 break;
             case 1:
                 break;
             case 2:
-                UpdateLengthCounters(ref tCycles);
-                UpdateSweep();
+                TickLengthCounters();
+                TickSweep();
                 break;
             case 3:
                 break;
             case 4:
-                UpdateLengthCounters(ref tCycles);
+                TickLengthCounters();
                 break;
             case 5:
                 break;
             case 6:
-                UpdateLengthCounters(ref tCycles);
-                UpdateSweep();
+                TickLengthCounters();
+                TickSweep();
                 break;
             case 7:
-                UpdateVolumeEnvelope(ref tCycles);
+                TickVolumeEnvelope();
                 break;
         }
     }
 
-    private void UpdateVolumeEnvelope(ref byte tCycles)
+    private void TickVolumeEnvelope()
     {
-        SquareChannel2.UpdateVolume(ref tCycles);
+        SquareChannel2.UpdateVolume();
     }
 
-    private void UpdateSweep()
+    private void TickSweep()
     {
         // throw new NotImplementedException();
     }
 
-    private void UpdateLengthCounters(ref byte tCycles)
+    private void TickLengthCounters()
     {
-        SquareChannel2.UpdateLengthTimer(ref tCycles);
+        SquareChannel2.TickLengthTimer();
     }
 
-    private bool DivFallingEdgeDetected()
+    private bool DivFallingEdgeDetected(ref byte dividerValue)
     {
         var previousDividerRegisterBitState = _currentDividerRegisterBitState;
-        
-        _currentDividerRegisterBitState = 
-            _dividerRegister.IsBitSet(Cycles.DivFallingEdgeDetectorBitIndex)
+
+        _currentDividerRegisterBitState =
+            dividerValue.IsBitSet(Cycles.DivFallingEdgeDetectorBitIndex)
                 ? BitState.Hi
                 : BitState.Lo;
-        
+
         return previousDividerRegisterBitState == BitState.Hi && _currentDividerRegisterBitState == BitState.Lo;
+    }
+
+    public void UpdatePowerState(ref byte value)
+    {
+        if (IsAudioOn && !value.IsBitSet(7))
+        {
+            IsAudioOn = false;
+        }
+        else if (!IsAudioOn && value.IsBitSet(7))
+        {
+            IsAudioOn = true;
+        }
+    }
+
+    public void UpdateChannelPanningStates(ref byte value)
+    {
+        //TODO: Implement other channels
+        SquareChannel2.IsLeftSpeakerOn = value.IsBitSet(4);
+        SquareChannel2.IsRightSpeakerOn = value.IsBitSet(0);
+        SquareChannel2.IsLeftSpeakerOn = value.IsBitSet(5);
+        SquareChannel2.IsRightSpeakerOn = value.IsBitSet(1);
+    }
+
+    public void UpdateVolumeControlStates(ref byte value)
+    {
+        //Ignores VIN input, bits 7 and 3
+        //Value of 0 means 'very quiet', 7 means full volume
+        LeftMasterVolume = (byte)((value & 0b0111_0000) >> 4);
+        RightMasterVolume = (byte)(value & 0b0000_0111);
     }
 }

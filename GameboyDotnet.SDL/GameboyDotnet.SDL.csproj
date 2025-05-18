@@ -68,7 +68,7 @@
       <None Update="Tests\Roms\Pokemon Red.gb">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="Tests\Roms\Pokemon - Red Version.gb">
+      <None Update="Tests\Roms\Pokemon Red.gb">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
       <None Update="Tests\Roms\Tetris.gb">
@@ -77,7 +77,7 @@
       <None Update="pkmn.ttf">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
-      <None Update="Tests\Roms\Super Mario Land 2 - 6 Golden Coins.gb">
+      <None Update="Tests\Roms\Super Mario Land 2.gb">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
     </ItemGroup>

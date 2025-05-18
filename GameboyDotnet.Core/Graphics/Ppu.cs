@@ -91,8 +91,7 @@ public class Ppu(MemoryController memoryController)
         {
             RenderBackgroundOrWindow();
         }
-           
-
+        
         if (Lcd.ObjDisplay == ObjDisplay.Enabled)
             RenderObjects();
     }
@@ -171,7 +170,7 @@ public class Ppu(MemoryController memoryController)
             : (ushort)Lcd.BgTileMapArea;
 
         var yPos = isWindow ? _ly.Subtract(wy) : _ly.Add(scy);
-        var tileLineIndex = (byte)((yPos & 7) * 2);
+        var tileLineIndex = (byte)((yPos & 0b111) * 2);
         var tileRowIndex = (ushort)(yPos / 8 * 32);
         ushort tileData = 0;
 

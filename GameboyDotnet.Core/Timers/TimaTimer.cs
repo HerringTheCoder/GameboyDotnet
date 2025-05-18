@@ -27,6 +27,7 @@ public class TimaTimer(MemoryController memoryController)
             if (timerValue == 0) //Overflow, TIMA = TMA, then request an interrupt
             {
                 memoryController.WriteByte(Constants.TIMARegister, memoryController.ReadByte(Constants.TMARegister));
+                
                 memoryController.WriteByte(
                     Constants.IFRegister,
                     memoryController.ReadByte(Constants.IFRegister).SetBit(2)

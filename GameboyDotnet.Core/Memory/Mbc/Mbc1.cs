@@ -53,7 +53,9 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks)
         {
             <= BankAddress.RomBank0End => MemorySpace[address - StartAddress],
             >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
-                => ExternalRamEnabled ? ExternalRam.ReadByte(ref address) : (byte)0xFF,
+                => ExternalRamEnabled 
+                    ? ExternalRam.ReadByte(ref address) 
+                    : (byte)0xFF,
             _ => MemorySpace[CurrentBank * BankSizeInBytes + address - BankAddress.RomBankNnStart]
         };
     }
