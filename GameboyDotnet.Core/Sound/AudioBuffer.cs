@@ -6,7 +6,7 @@ namespace GameboyDotnet.Sound
     {
         private readonly ConcurrentQueue<float[]> _sampleQueue = new();
         private readonly float[] _sampleBuffer = new float[BufferSize];
-        private const int BufferSize = 1024 * 2;
+        private const int BufferSize = 1024*2;
         private int CurrentBufferIndex = 0;
         
         public void EnqueueSample(float leftSample, float rightSample)

@@ -42,6 +42,9 @@ gameboy.ExceptionOccured += (_, _) =>
 
 Task.Run(() => gameboy.RunAsync(emulatorSettings.FrameLimitEnabled, cts.Token));
 
+var userActionText = string.Empty;
+var userActionTextFrameCounter = 0;
+
 // Main SDL loop
 while (running && !cts.IsCancellationRequested)
 {
@@ -60,6 +63,26 @@ while (running && !cts.IsCancellationRequested)
                         break;
                     case SDL_Keycode.SDLK_p:
                         gameboy.SwitchFramerateLimiter();
+                        break;
+                    case SDL_Keycode.SDLK_1:
+                        gameboy.Apu.SquareChannel1.IsDebugEnabled = !gameboy.Apu.SquareChannel1.IsDebugEnabled;
+                        userActionText = $"CH1: {(gameboy.Apu.SquareChannel1.IsDebugEnabled ? "on" : "off")}";
+                        userActionTextFrameCounter = 120;
+                        break;
+                    case SDL_Keycode.SDLK_2:
+                        gameboy.Apu.SquareChannel2.IsDebugEnabled = !gameboy.Apu.SquareChannel2.IsDebugEnabled;
+                        userActionText = $"CH2: {(gameboy.Apu.SquareChannel2.IsDebugEnabled ? "on" : "off")}";
+                        userActionTextFrameCounter = 120;
+                        break;
+                    case SDL_Keycode.SDLK_3:
+                        gameboy.Apu.WaveChannel.IsDebugEnabled = !gameboy.Apu.WaveChannel.IsDebugEnabled;
+                        userActionText = $"CH3: {(gameboy.Apu.WaveChannel.IsDebugEnabled ? "on" : "off")}";
+                        userActionTextFrameCounter = 120;
+                        break;
+                    case SDL_Keycode.SDLK_4:
+                        gameboy.Apu.NoiseChannel.IsDebugEnabled = !gameboy.Apu.NoiseChannel.IsDebugEnabled;
+                        userActionText = $"CH4: {(gameboy.Apu.NoiseChannel.IsDebugEnabled ? "on" : "off")}";
+                        userActionTextFrameCounter = 120;
                         break;
                 }
                 if (keyboardMapper.TryGetGameboyKey(e.key.keysym.sym, out var keyPressed))
@@ -80,7 +103,15 @@ while (running && !cts.IsCancellationRequested)
     if(gameboy.Ppu.FrameBuffer.TryDequeueFrame(out var frame))
     {
         string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps/ 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS";
-        SdlRenderer.RenderStates(ref renderer, ref window, frame!, bufferedFramesText);
+        if(userActionTextFrameCounter > 0)
+        {
+            userActionTextFrameCounter--;
+        }
+        else
+        {
+            userActionText = string.Empty;
+        }
+        SdlRenderer.RenderStates(ref renderer, ref window, frame!, string.Join(" \n ", bufferedFramesText, userActionText));
     }
 }
 

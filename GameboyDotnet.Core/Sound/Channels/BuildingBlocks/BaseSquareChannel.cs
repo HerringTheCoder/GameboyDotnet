@@ -1,6 +1,6 @@
 ﻿namespace GameboyDotnet.Sound.Channels.BuildingBlocks;
 
-public class BaseSquareChannel(AudioBuffer audioBuffer) : BaseChannel(audioBuffer)
+public abstract class BaseSquareChannel() : BaseChannel()
 {
     protected byte[][] DutyCycles =
     [
@@ -14,37 +14,58 @@ public class BaseSquareChannel(AudioBuffer audioBuffer) : BaseChannel(audioBuffe
 
     //NR11-NR21
     public int WaveDutyIndex = 0;
-    
+
     public override void Step()
     {
-        var isPeriodDividerCountdownFinished = StepPeriodDividerTimer();
+        if (!IsChannelOn)
+            return;
 
-        if (isPeriodDividerCountdownFinished)
+        var isPeriodTimerFinished = StepPeriodTimer();
+
+        if (isPeriodTimerFinished)
         {
             DutyCycleStep = (DutyCycleStep + 1) & 0b111; //Wrap after 7
+            RefreshOutputState();
         }
-
-        StepSampleState();
     }
-    
-    protected override void StepSampleState()
+
+    public override void Reset()
     {
+        base.Reset();
+        DutyCycleStep = 0;
+        WaveDutyIndex = 0;
+    }
+
+    protected override void RefreshOutputState()
+    {
+        if (!IsChannelOn)
+            return;
+
         CurrentOutput = DutyCycles[WaveDutyIndex][DutyCycleStep] == 1 && IsChannelOn
-            ? VolumeLevel   // Integer 0–15
+            ? VolumeLevel // (Hi-state) 1 * [0–15]
             : 0;
     }
 
-    public override void UpdateLengthDuty(ref byte value)
+    public override void SetLengthTimer(ref byte value)
     {
         WaveDutyIndex = (value & 0b1100_0000) >> 6;
-        base.UpdateLengthDuty(ref value);
+        base.SetLengthTimer(ref value);
     }
 
     protected override void Trigger()
     {
-        if (!IsChannelOn)
-            DutyCycleStep = 0;
-        
+        DutyCycleStep = 0;
         base.Trigger();
+    }
+
+    protected override void ResetLengthTimerValue()
+    {
+        LengthTimer = 64;
+    }
+
+    protected override void ResetPeriodTimer()
+    {
+        int lowerBitsOfPeriodDividerTimer = PeriodTimer & 0b11;
+        PeriodTimer = ((2048 - GetPeriodValueFromRegisters) * 4 & ~0b11) | lowerBitsOfPeriodDividerTimer;
     }
 }
