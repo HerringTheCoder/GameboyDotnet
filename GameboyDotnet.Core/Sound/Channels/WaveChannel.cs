@@ -84,4 +84,10 @@ public class WaveChannel(AudioBuffer audioBuffer) : BaseChannel()
         var ramAddress = address - 0xFF30;
         return _waveRam[ramAddress];
     }
+
+    public override void SetLengthTimer(ref byte value)
+    {
+        InitialLengthTimer = value;
+        LengthTimer = 256 - InitialLengthTimer;
+    }
 }

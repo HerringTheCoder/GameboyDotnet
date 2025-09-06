@@ -30,4 +30,10 @@ public class NoiseChannel() : BaseChannel()
     {
         PeriodLowOrRandomness = value;
     }
+
+    public override void SetLengthTimer(ref byte value)
+    {
+        InitialLengthTimer = value;
+        LengthTimer = 64 - InitialLengthTimer;
+    }
 }

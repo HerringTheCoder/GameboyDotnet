@@ -108,11 +108,7 @@ public abstract class BaseChannel()
         }
     }
 
-    public virtual void SetLengthTimer(ref byte value)
-    {
-        InitialLengthTimer = value & 0b0011_1111;
-        LengthTimer = 64 - InitialLengthTimer;
-    }
+    public abstract void SetLengthTimer(ref byte value);
 
     public virtual void SetVolumeRegister(ref byte value)
     {
@@ -134,9 +130,19 @@ public abstract class BaseChannel()
 
     public void SetPeriodHighControl(ref byte value)
     {
+        bool oldLengthEnabled = IsLengthEnabled;
         IsLengthEnabled = value.IsBitSet(6);
         PeriodHigh = (byte)(value & 0b111);
 
+        //TODO: if(!oldLengthEnabled && IsLengthEnabled && FrameSequencerWillNotClockLengthThisSteps && LengthTimer >0)
+        // {
+        //     LengthTimer--;
+        //     if (LengthTimer == 0)
+        //     {
+        //         IsChannelOn = false;
+        //     }
+        // }
+        
         if (value.IsBitSet(7))
         {
             Trigger();
@@ -150,6 +156,10 @@ public abstract class BaseChannel()
         if (LengthTimer == 0)
         {
             ResetLengthTimerValue();
+            // TODO: if (IsLengthEnabled && FrameSequencerWillNotClockLengthThisStep())
+            // {
+            //     LengthTimer--;
+            // }
         }
         
         ResetPeriodTimer();

@@ -49,7 +49,8 @@ public abstract class BaseSquareChannel() : BaseChannel()
     public override void SetLengthTimer(ref byte value)
     {
         WaveDutyIndex = (value & 0b1100_0000) >> 6;
-        base.SetLengthTimer(ref value);
+        InitialLengthTimer = value & 0b0011_1111;
+        LengthTimer = 64 - InitialLengthTimer;
     }
 
     protected override void Trigger()

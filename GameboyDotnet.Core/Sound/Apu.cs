@@ -3,7 +3,7 @@ using GameboyDotnet.Sound.Channels;
 
 namespace GameboyDotnet.Sound;
 
-public class Apu
+public partial class Apu
 {
     public AudioBuffer AudioBuffer { get; init; }
     public SquareChannel1 SquareChannel1 { get; private set; }
@@ -87,109 +87,5 @@ public class Apu
         float normalizedLeft = (float)leftSum / MaxDigitalSumOfOutputPerStereoChannel * 2f - 1f;
         float normalizedRight = (float)rightSum / MaxDigitalSumOfOutputPerStereoChannel * 2f - 1f;
         AudioBuffer.EnqueueSample(normalizedLeft, normalizedRight);
-    }
-
-    private void StepFrameSequencer()
-    {
-        _frameSequencerCyclesTimer--;
-
-        if (_frameSequencerCyclesTimer > 0)
-            return;
-
-        _frameSequencerCyclesTimer = 8192;
-
-        _frameSequencerPosition = (_frameSequencerPosition + 1) & 0b111; //Wrap to 7
-
-        switch (_frameSequencerPosition)
-        {
-            case 0:
-                TickLengthCounters();
-                break;
-            case 1:
-                break;
-            case 2:
-                TickLengthCounters();
-                TickSweep();
-                break;
-            case 3:
-                break;
-            case 4:
-                TickLengthCounters();
-                break;
-            case 5:
-                break;
-            case 6:
-                TickLengthCounters();
-                TickSweep();
-                break;
-            case 7:
-                TickVolumeEnvelope();
-                break;
-        }
-    }
-
-    private void TickVolumeEnvelope()
-    {
-        SquareChannel1.TickVolumeEnvelopeTimer();
-        SquareChannel2.TickVolumeEnvelopeTimer();
-        WaveChannel.TickVolumeEnvelopeTimer();
-        NoiseChannel.TickVolumeEnvelopeTimer();
-    }
-
-    private void TickSweep()
-    {
-        SquareChannel1.TickSweep();
-    }
-
-    private void TickLengthCounters()
-    {
-        SquareChannel1.StepLengthTimer();
-        SquareChannel2.StepLengthTimer();
-        WaveChannel.StepLengthTimer();
-        NoiseChannel.StepLengthTimer();
-    }
-
-    public void SetPowerState(ref byte value)
-    {
-        if (IsAudioOn && !value.IsBitSet(7))
-        {
-            IsAudioOn = false;
-            LeftMasterVolume = 0;
-            RightMasterVolume = 0;
-            
-            SquareChannel1.Reset();
-            SquareChannel2.Reset();
-            WaveChannel.Reset();
-            NoiseChannel.Reset();
-        }
-        else if (!IsAudioOn && value.IsBitSet(7))
-        {
-            IsAudioOn = true;
-            _frameSequencerCyclesTimer = 8192;
-            _frameSequencerPosition = 0;
-        }
-    }
-
-    public void SetChannelPanningStates(ref byte value)
-    {
-        SquareChannel1.IsLeftSpeakerOn = value.IsBitSet(4);
-        SquareChannel1.IsRightSpeakerOn = value.IsBitSet(0);
-        
-        SquareChannel2.IsLeftSpeakerOn = value.IsBitSet(5);
-        SquareChannel2.IsRightSpeakerOn = value.IsBitSet(1);
-        
-        WaveChannel.IsLeftSpeakerOn = value.IsBitSet(6);
-        WaveChannel.IsRightSpeakerOn = value.IsBitSet(2);
-        
-        NoiseChannel.IsLeftSpeakerOn = value.IsBitSet(7);
-        NoiseChannel.IsRightSpeakerOn = value.IsBitSet(3);
-    }
-
-    public void SetVolumeControlStates(ref byte value)
-    {
-        //Ignores VIN input, bits 7 and 3
-        //Value of 0 means 'very quiet', 7 means full volume
-        LeftMasterVolume = (byte)((value & 0b0111_0000) >> 4);
-        RightMasterVolume = (byte)(value & 0b0000_0111);
     }
 }
