@@ -29,6 +29,19 @@ public abstract class BaseSquareChannel() : BaseChannel()
         }
     }
 
+    protected override bool StepPeriodTimer()
+    {
+        PeriodTimer--;
+        if (PeriodTimer > 0)
+        {
+            return false;
+        }
+        
+        ResetPeriodTimerPreserveLowerBits();
+
+        return true;
+    }
+
     public override void Reset()
     {
         base.Reset();

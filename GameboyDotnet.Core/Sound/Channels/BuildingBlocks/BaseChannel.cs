@@ -69,16 +69,7 @@ public abstract class BaseChannel()
             return false;
         }
 
-        // Use preserving version for non-trigger reloads in square channels
-        if (this is BaseSquareChannel squareChannel)
-        {
-            squareChannel.ResetPeriodTimerPreserveLowerBits();
-        }
-        else
-        {
-            ResetPeriodTimer();
-        }
-
+        ResetPeriodTimer();
         return true;
     }
     

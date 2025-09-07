@@ -13,8 +13,7 @@ public class SquareChannel1(AudioBuffer audioBuffer) : BaseSquareChannel()
     private byte _requestedPaceValue;
     private EnvelopeDirection _frequencyEnvelopeDirection; //True = Addition, False = Subtraction
     private byte _individualStep;
-
-
+    
     public override void Reset()
     {
         base.Reset();
@@ -108,15 +107,15 @@ public class SquareChannel1(AudioBuffer audioBuffer) : BaseSquareChannel()
 
     private int CalculatePeriodAfterSweep()
     {
+        if (!FrequencyFilters.IsHighPassFilterActive)
+        {
+            return _periodShadowRegister;
+        }
+        
         int periodSweep = _periodShadowRegister >> _individualStep;
 
-        if (_frequencyEnvelopeDirection is EnvelopeDirection.Ascending)
-        {
-            return _periodShadowRegister + periodSweep;
-        }
-        else
-        {
-            return _periodShadowRegister - periodSweep;
-        }
+        return _frequencyEnvelopeDirection is EnvelopeDirection.Ascending
+            ? _periodShadowRegister + periodSweep
+            : _periodShadowRegister - periodSweep;
     }
 }
