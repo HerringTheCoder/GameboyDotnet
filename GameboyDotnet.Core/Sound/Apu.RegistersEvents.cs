@@ -21,7 +21,7 @@ public partial class Apu
         else if (!IsAudioOn && value.IsBitSet(7))
         {
             IsAudioOn = true;
-            _frameSequencerCyclesTimer = 8192;
+            _frameSequencerCyclesTimer = FrameSequencerCyclesPerFrame;
             _frameSequencerPosition = 0;
         }
     }

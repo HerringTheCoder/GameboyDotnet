@@ -26,7 +26,7 @@ public class WaveChannel(AudioBuffer audioBuffer) : BaseChannel()
 
     protected override void RefreshOutputState()
     {
-        //Instead of multiplying by [0f, 1f, 0.5f, 0.25f] we can use right bit shifting by (VolumeIndex - 1)
+        //This effectively maps WaveVolumeIndex to proper multipliers [0f, 1f, 0.5f, 0.25f] while avoiding multiplication
         CurrentOutput = IsChannelOn && WaveVolumeIndex != 0
             ? _waveSampleBuffer[_waveFormCurrentIndex] >> (WaveVolumeIndex - 1)
             : 0;
@@ -39,14 +39,8 @@ public class WaveChannel(AudioBuffer audioBuffer) : BaseChannel()
 
     public void SetDacStatus(ref byte value)
     {
-        //TODO: Double check
         IsDacEnabled = value.IsBitSet(7);
-        if (IsDacEnabled)
-        {
-            LengthTimer = InitialLengthTimer;
-            IsChannelOn = true;
-        }
-        else
+        if (!IsDacEnabled)
         {
             IsChannelOn = false;
         }

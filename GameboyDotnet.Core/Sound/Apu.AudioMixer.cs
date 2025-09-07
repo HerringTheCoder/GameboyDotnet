@@ -1,43 +1,33 @@
 ﻿using GameboyDotnet.Sound.Channels;
+using GameboyDotnet.Sound.Channels.BuildingBlocks;
 
 namespace GameboyDotnet.Sound;
 
 public partial class Apu
 {
-    private float _capacitorLeft = 0f;
-    private float _capacitorRight = 0f;
-    private (float leftPcmSample, float rightPcmSample) MixAudioChannelsToStereoSample()
+    private (float leftPcmSample, float rightPcmSample) MixAudioChannelsToStereoSamples()
     {
         int leftSum = 0;
         int rightSum = 0;
+        bool isAnyDacEnabled = false;
 
-        if (SquareChannel1 is { IsDacEnabled: true, IsChannelOn: true, IsDebugEnabled: true })
+        foreach (var channel in AvailableChannels)
         {
-            if (SquareChannel1.IsLeftSpeakerOn) leftSum += SquareChannel1.CurrentOutput;
-            if (SquareChannel1.IsRightSpeakerOn) rightSum += SquareChannel1.CurrentOutput;
-        }
-              
-        if(SquareChannel2 is { IsDacEnabled: true, IsChannelOn: true, IsDebugEnabled: true })
-        {
-            if (SquareChannel2.IsLeftSpeakerOn) leftSum += SquareChannel2.CurrentOutput;
-            if (SquareChannel2.IsRightSpeakerOn) rightSum += SquareChannel2.CurrentOutput;
-        }
-        
-        if(WaveChannel is { IsDacEnabled: true, IsChannelOn: true, IsDebugEnabled: true })
-        {
-            if (WaveChannel.IsLeftSpeakerOn) leftSum += WaveChannel.CurrentOutput;
-            if (WaveChannel.IsRightSpeakerOn) rightSum += WaveChannel.CurrentOutput;
-        }
-        
-        if(NoiseChannel is { IsDacEnabled: true, IsChannelOn: true, IsDebugEnabled: true })
-        {
-            if (NoiseChannel.IsLeftSpeakerOn) leftSum += NoiseChannel.CurrentOutput;
-            if (NoiseChannel.IsRightSpeakerOn) rightSum += NoiseChannel.CurrentOutput;
+            if (channel.IsDacEnabled)
+                isAnyDacEnabled = true;
+
+            if (channel is { IsChannelOn: true, IsDebugEnabled: true })
+            {
+                if (channel.IsLeftSpeakerOn) leftSum += channel.CurrentOutput;
+                if (channel.IsRightSpeakerOn) rightSum += channel.CurrentOutput;
+            }
         }
 
         //Apply master volume panning
         leftSum *= LeftMasterVolume;
         rightSum *= RightMasterVolume;
+        var (leftSample, rightSample) = (NormalizeToPcmSample(leftSum), NormalizeToPcmSample(rightSum));
+        FrequencyFilters.ApplyHighPassFilter(ref leftSample, ref rightSample, isAnyDacEnabled);
         
         return (NormalizeToPcmSample(leftSum), NormalizeToPcmSample(rightSum));
     }

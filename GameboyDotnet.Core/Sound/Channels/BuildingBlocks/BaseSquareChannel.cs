@@ -66,6 +66,11 @@ public abstract class BaseSquareChannel() : BaseChannel()
 
     protected override void ResetPeriodTimer()
     {
+        PeriodTimer = (2048 - GetPeriodValueFromRegisters) * 4;
+    }
+
+    public void ResetPeriodTimerPreserveLowerBits()
+    {
         int lowerBitsOfPeriodDividerTimer = PeriodTimer & 0b11;
         PeriodTimer = ((2048 - GetPeriodValueFromRegisters) * 4 & ~0b11) | lowerBitsOfPeriodDividerTimer;
     }

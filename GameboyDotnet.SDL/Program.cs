@@ -4,6 +4,7 @@ using GameboyDotnet.Common;
 using GameboyDotnet.Graphics;
 using GameboyDotnet.SDL;
 using GameboyDotnet.SDL.SaveStates;
+using GameboyDotnet.Sound;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
 
@@ -82,6 +83,11 @@ while (running && !cts.IsCancellationRequested)
                     case SDL_Keycode.SDLK_4:
                         gameboy.Apu.NoiseChannel.IsDebugEnabled = !gameboy.Apu.NoiseChannel.IsDebugEnabled;
                         userActionText = $"CH4: {(gameboy.Apu.NoiseChannel.IsDebugEnabled ? "on" : "off")}";
+                        userActionTextFrameCounter = 120;
+                        break;
+                    case SDL_Keycode.SDLK_5:
+                        FrequencyFilters.IsHighPassFilterActive = !FrequencyFilters.IsHighPassFilterActive;
+                        userActionText = $"High-Pass filter: {(FrequencyFilters.IsHighPassFilterActive ? "on" : "off")}";
                         userActionTextFrameCounter = 120;
                         break;
                 }

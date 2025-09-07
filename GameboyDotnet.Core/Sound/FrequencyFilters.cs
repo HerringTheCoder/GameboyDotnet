@@ -8,16 +8,24 @@ public static class FrequencyFilters
     /// <returns></returns>
     public static bool IsHighPassFilterActive = true;
     
-    public static float HighPassFilter(this float pcmSample, ref float capacitor)
+    private static float _capacitorLeft = 0f;
+    private static float _capacitorRight = 0f;
+    private const float CapacitorChargingRatio = 0.995948f;
+
+    public static void ApplyHighPassFilter(ref float leftSample, ref float rightSample, bool isAnyDacEnabled = true)
     {
         if (!IsHighPassFilterActive)
         {
-            return pcmSample;
+            return;
         }
         
-        float output = pcmSample - capacitor;
-        // capacitor slowly charges to 'in' via their difference
-        capacitor = pcmSample - output * 0.995948f;
-        return output;
+        float leftOutput = 0.0f;
+        float rightOutput = 0.0f;
+
+        leftOutput = leftSample - _capacitorLeft;
+        rightOutput = rightSample - _capacitorRight;
+        
+        _capacitorLeft = leftSample - leftOutput * CapacitorChargingRatio;
+        _capacitorRight = rightSample - rightOutput * CapacitorChargingRatio;
     }
 }

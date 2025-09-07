@@ -16,8 +16,8 @@ public abstract class BaseChannel()
     public int InitialLengthTimer;
 
     //NRX2
-    public int VolumeEnvelopeSweepPace;
-    public bool VolumeEnvelopeDirection;
+    public int VolumeEnvelopePace; //also referred to as: Volume Envelop Period
+    public EnvelopeDirection VolumeEnvelopeDirection;
     public int InitialVolume;
     public bool IsDacEnabled;
 
@@ -48,8 +48,8 @@ public abstract class BaseChannel()
         IsRightSpeakerOn = false;
         IsLeftSpeakerOn = false;
         InitialLengthTimer = 0;
-        VolumeEnvelopeSweepPace = 0;
-        VolumeEnvelopeDirection = false;
+        VolumeEnvelopePace = 0;
+        VolumeEnvelopeDirection = EnvelopeDirection.Descending;
         InitialVolume = 0;
         IsDacEnabled = false;
         PeriodLowOrRandomness = 0;
@@ -69,7 +69,15 @@ public abstract class BaseChannel()
             return false;
         }
 
-        ResetPeriodTimer();
+        // Use preserving version for non-trigger reloads in square channels
+        if (this is BaseSquareChannel squareChannel)
+        {
+            squareChannel.ResetPeriodTimerPreserveLowerBits();
+        }
+        else
+        {
+            ResetPeriodTimer();
+        }
 
         return true;
     }
@@ -92,18 +100,19 @@ public abstract class BaseChannel()
 
     public void TickVolumeEnvelopeTimer()
     {
-        if (VolumeEnvelopeSweepPace == 0)
-            return;
+        //https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware - Obscure Behavior
+        //The volume envelope and sweep timers treat a period of 0 as 8.
+        int effectiveVolumeEnvelopePace = VolumeEnvelopePace == 0 ? 8 : VolumeEnvelopePace;
         
         VolumeEnvelopeTimer--;
 
         if (VolumeEnvelopeTimer <= 0)
         {
-            VolumeEnvelopeTimer = VolumeEnvelopeSweepPace;
+            VolumeEnvelopeTimer = effectiveVolumeEnvelopePace;
             
-            if (VolumeEnvelopeDirection && VolumeLevel < 15)
+            if (VolumeEnvelopeDirection is EnvelopeDirection.Ascending && VolumeLevel < 15)
                 VolumeLevel++;
-            else if (!VolumeEnvelopeDirection && VolumeLevel > 0)
+            else if (VolumeEnvelopeDirection is EnvelopeDirection.Descending && VolumeLevel > 0)
                 VolumeLevel--;
         }
     }
@@ -113,10 +122,11 @@ public abstract class BaseChannel()
     public virtual void SetVolumeRegister(ref byte value)
     {
         InitialVolume = (value & 0b1111_0000) >> 4;
-        VolumeEnvelopeDirection = value.IsBitSet(3);
-        VolumeEnvelopeSweepPace = value & 0b111;
-        
-        IsDacEnabled = (InitialVolume != 0 || VolumeEnvelopeSweepPace != 0);
+        VolumeEnvelopeDirection = value.IsBitSet(3) ? EnvelopeDirection.Ascending : EnvelopeDirection.Descending;
+        VolumeEnvelopePace = value & 0b111;
+
+        // DAC is enabled if any of the upper 5 bits are set (0xF8 mask)
+        IsDacEnabled = (value & 0b1111_1000) != 0;
         if (!IsDacEnabled)
         {
             IsChannelOn = false;
@@ -163,7 +173,8 @@ public abstract class BaseChannel()
         }
         
         ResetPeriodTimer();
-        VolumeEnvelopeTimer = VolumeEnvelopeSweepPace;
+        int effectiveVolumeEnvelopePace = VolumeEnvelopePace == 0 ? 8 : VolumeEnvelopePace;
+        VolumeEnvelopeTimer = effectiveVolumeEnvelopePace;
         VolumeLevel = InitialVolume;
     }
 
