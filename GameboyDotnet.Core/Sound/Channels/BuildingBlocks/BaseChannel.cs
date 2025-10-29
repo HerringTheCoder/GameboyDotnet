@@ -34,7 +34,7 @@ public abstract class BaseChannel()
     public int PeriodTimer = 0;
     public int VolumeEnvelopeTimer = 0;
     protected int VolumeLevel;
-
+    protected bool VolumeEnvelopeRunning = true; // Tracks if envelope should continue updating
 
     public int CurrentOutput;
 
@@ -59,6 +59,7 @@ public abstract class BaseChannel()
         PeriodTimer = 0;
         VolumeEnvelopeTimer = 0;
         VolumeLevel = 0;
+        VolumeEnvelopeRunning = true;
     }
 
     protected virtual bool StepPeriodTimer()
@@ -85,12 +86,20 @@ public abstract class BaseChannel()
             if (LengthTimer == 0)
             {
                 IsChannelOn = false;
+                CurrentOutput = 0; // Ensure output is silenced when channel is disabled
             }
         }
     }
 
     public void TickVolumeEnvelopeTimer()
     {
+        if (VolumeEnvelopePace == 0)
+            return;
+        
+        // If envelope has stopped (reached limit of output = 15), don't continue updating
+        if (!VolumeEnvelopeRunning)
+            return;
+        
         //https://gbdev.gg8.se/wiki/articles/Gameboy_sound_hardware - Obscure Behavior
         //The volume envelope and sweep timers treat a period of 0 as 8.
         int effectiveVolumeEnvelopePace = VolumeEnvelopePace == 0 ? 8 : VolumeEnvelopePace;
@@ -101,10 +110,20 @@ public abstract class BaseChannel()
         {
             VolumeEnvelopeTimer = effectiveVolumeEnvelopePace;
             
-            if (VolumeEnvelopeDirection is EnvelopeDirection.Ascending && VolumeLevel < 15)
-                VolumeLevel++;
-            else if (VolumeEnvelopeDirection is EnvelopeDirection.Descending && VolumeLevel > 0)
-                VolumeLevel--;
+            if (VolumeEnvelopeDirection is EnvelopeDirection.Ascending)
+            {
+                if (VolumeLevel < 15)
+                    VolumeLevel++;
+                else
+                    VolumeEnvelopeRunning = false; // Stop envelope updates
+            }
+            else if (VolumeEnvelopeDirection is EnvelopeDirection.Descending)
+            {
+                if (VolumeLevel > 0)
+                    VolumeLevel--;
+                else
+                    VolumeEnvelopeRunning = false; // Stop envelope updates
+            }
         }
     }
 
@@ -121,6 +140,7 @@ public abstract class BaseChannel()
         if (!IsDacEnabled)
         {
             IsChannelOn = false;
+            CurrentOutput = 0;
         }
     }
 
@@ -167,6 +187,7 @@ public abstract class BaseChannel()
         int effectiveVolumeEnvelopePace = VolumeEnvelopePace == 0 ? 8 : VolumeEnvelopePace;
         VolumeEnvelopeTimer = effectiveVolumeEnvelopePace;
         VolumeLevel = InitialVolume;
+        VolumeEnvelopeRunning = true;
     }
 
     protected abstract void ResetLengthTimerValue();

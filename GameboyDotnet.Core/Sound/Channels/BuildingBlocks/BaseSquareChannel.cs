@@ -52,9 +52,12 @@ public abstract class BaseSquareChannel() : BaseChannel()
     protected override void RefreshOutputState()
     {
         if (!IsChannelOn)
+        {
+            CurrentOutput = 0;
             return;
-
-        CurrentOutput = DutyCycles[WaveDutyIndex][DutyCycleStep] == 1 && IsChannelOn
+        }
+        
+        CurrentOutput = DutyCycles[WaveDutyIndex][DutyCycleStep] == 1
             ? VolumeLevel // (Hi-state) 1 * [0–15]
             : 0;
     }
