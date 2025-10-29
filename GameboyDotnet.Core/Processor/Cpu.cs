@@ -40,15 +40,16 @@ public partial class Cpu
             _ => throw new NotImplementedException($"Operation {opCode:X2} not implemented")
         };
 
-        if (Register.IMEPending && opCode != 0xFB)
+        Register.PC += operationSize.instructionBytesLength;
+
+        // EI has a 1-instruction delay: IME is enabled after the next instruction completes
+        if (Register.IMEPending)
         {
             Register.IMEPending = false;
             Register.InterruptsMasterEnabled = true;
         }
-
-        Register.PC += operationSize.instructionBytesLength;
         
-        return (byte)(operationSize.durationTStates + (interruptHandled ? 5 : 0));
+        return (byte)(operationSize.durationTStates + (interruptHandled ? 20 : 0));
     }
 
     private bool CheckCondition(ref byte opCode)

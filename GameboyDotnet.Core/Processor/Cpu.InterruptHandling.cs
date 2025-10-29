@@ -13,10 +13,15 @@ public partial class Cpu
         var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
         var interrupt = (byte)(interruptFlags & interruptEnable);
 
-        if (interrupt == 0 || !Register.InterruptsMasterEnabled) //TODO: https://gbdev.io/pandocs/halt.html
+        // Halt bug: If any interrupt is pending (even if IME is disabled), CPU wakes from halt
+        if (interrupt != 0)
+        {
+            IsHalted = false;
+        }
+        
+        if (interrupt == 0 || !Register.InterruptsMasterEnabled)
             return false;
 
-        IsHalted = false;
         var interruptIndex = BitOperations.TrailingZeroCount(interrupt);
         Register.InterruptsMasterEnabled = false;
         MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
