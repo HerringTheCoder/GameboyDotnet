@@ -74,7 +74,11 @@ public class SquareChannel1(AudioBuffer audioBuffer) : BaseSquareChannel()
             _isSweepEnabled = false;
             return;
         }
-
+        
+        if (!FrequencyFilters.IsHighPassFilterActive)
+        {
+            value = (byte)(value ^ 0b1000);
+        }
         _frequencyEnvelopeDirection = value.IsBitSet(3) ? EnvelopeDirection.Descending : EnvelopeDirection.Ascending;
         _individualStep = (byte)(value & 0b0000_0111);
     }
@@ -107,11 +111,6 @@ public class SquareChannel1(AudioBuffer audioBuffer) : BaseSquareChannel()
 
     private int CalculatePeriodAfterSweep()
     {
-        if (!FrequencyFilters.IsHighPassFilterActive)
-        {
-            return _periodShadowRegister;
-        }
-        
         int periodSweep = _periodShadowRegister >> _individualStep;
 
         return _frequencyEnvelopeDirection is EnvelopeDirection.Ascending
