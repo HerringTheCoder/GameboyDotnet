@@ -19,7 +19,7 @@ public class WaveChannel(AudioBuffer audioBuffer) : BaseChannel()
 
         if (isPeriodTimerFinished)
         {
-            _waveFormCurrentIndex = (_waveFormCurrentIndex + 1) & 0b1111; //Wrap after 15
+            _waveFormCurrentIndex = (_waveFormCurrentIndex + 1) & 0b11111; //Wrap after 32 samples
             RefreshOutputState();
         }
     }
