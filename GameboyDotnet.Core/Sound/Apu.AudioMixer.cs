@@ -29,7 +29,7 @@ public partial class Apu
         var (leftSample, rightSample) = (NormalizeToPcmSample(leftSum), NormalizeToPcmSample(rightSum));
         FrequencyFilters.ApplyHighPassFilter(ref leftSample, ref rightSample, isAnyDacEnabled);
         
-        return (NormalizeToPcmSample(leftSum), NormalizeToPcmSample(rightSum));
+        return (leftSample, rightSample);
     }
 
     private float NormalizeToPcmSample(float sample)
