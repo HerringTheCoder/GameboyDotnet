@@ -42,6 +42,7 @@ public class MemoryController
 
         //Load the first bank
         bank0.CopyTo(RomBankNn.MemorySpace, 0);
+        
         //Load the rest of the banks
         for (int i = 1; i < RomBankNn.NumberOfBanks; i++)
         {
@@ -147,9 +148,19 @@ public class MemoryController
     private void DmaTransfer(ref byte value)
     {
         ushort sourceAddress = (ushort)(value << 8); //0x_XX00
-        for (ushort i = 0xFE00; i <= 0xFE9F; i++)
+               
+        var sourceBank = _memoryMap[sourceAddress];
+        
+        for (ushort i = 0; i <= 0x9F; i++)
         {
-            WriteByte(i, ReadByte(sourceAddress++));
+            var srcAddr = (ushort)(sourceAddress + i);
+            var dstAddr = (ushort)(0xFE00 + i);
+            
+            // Read data from source
+            byte data = sourceBank.ReadByte(ref srcAddr);
+            
+            // Move data directly to OAM
+            Oam.WriteByte(ref dstAddr, ref data);
         }
     }
 

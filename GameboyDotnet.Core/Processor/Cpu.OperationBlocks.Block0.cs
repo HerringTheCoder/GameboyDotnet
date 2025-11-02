@@ -323,6 +323,6 @@ public partial class Cpu
         
         IsHalted = true;
         //TODO: Implement GBC mode switch if needed
-        return (1, 4);
+        return (2, 4);
     }
 }
