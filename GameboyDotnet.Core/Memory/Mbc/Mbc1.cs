@@ -5,8 +5,8 @@ namespace GameboyDotnet.Memory.Mbc;
 
 //https://gbdev.io/pandocs/MBC1.html
 
-public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks) 
-    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
+public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks, int ramBankCount) 
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks, ramBankCount)
 {
     public override void WriteByte(ref ushort address, ref byte value)
     {
@@ -51,7 +51,11 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks)
     {
         return address switch
         {
-            <= BankAddress.RomBank0End => MemorySpace[address - StartAddress],
+            // In Mode 1 for large ROMs (1MB+), the upper 2 bits affect bank 0 region
+            <= BankAddress.RomBank0End when RomBankingMode == 1 && NumberOfBanks >= 64 
+                => MemorySpace[((CurrentBank & 0x60) * BankSizeInBytes) + address - StartAddress],
+            <= BankAddress.RomBank0End 
+                => MemorySpace[address - StartAddress],
             >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
                 => ExternalRamEnabled 
                     ? ExternalRam.ReadByte(ref address) 

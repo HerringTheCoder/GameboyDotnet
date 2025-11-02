@@ -1,7 +1,7 @@
 ﻿namespace GameboyDotnet.Memory.Mbc;
 
 public class Mbc0Mock(string name, int bankSizeInBytes, int numberOfBanks) 
-    : Mbc0( name, bankSizeInBytes, numberOfBanks)
+    : Mbc0( name, bankSizeInBytes, numberOfBanks, ramBankCount: 0)
 {
     public override void WriteByte(ref ushort address, ref byte value)
     {

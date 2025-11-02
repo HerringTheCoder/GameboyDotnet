@@ -3,8 +3,8 @@ using GameboyDotnet.Memory.BuildingBlocks;
 
 namespace GameboyDotnet.Memory.Mbc;
 
-public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks)
-    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
+public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks, int ramBankCount)
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks, ramBankCount)
 {
     private byte RtcSeconds; // 0x08, RTC S register (0-59)
     private byte RtcMinutes; // 0x09, RTC M register (0-59)
@@ -78,7 +78,7 @@ public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks)
         switch (address)
         {
             case <= BankAddress.RomBank0End:
-                return MemorySpace[address];
+                return MemorySpace[address - StartAddress];
             case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd when !ExternalRamEnabled:
                 return 0xFF;
             case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd:
