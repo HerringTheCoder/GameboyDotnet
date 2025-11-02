@@ -19,13 +19,13 @@ public static class FrequencyFilters
             return;
         }
         
-        float leftOutput = 0.0f;
-        float rightOutput = 0.0f;
-
-        leftOutput = leftSample - _capacitorLeft;
-        rightOutput = rightSample - _capacitorRight;
+        float leftOutput = leftSample - _capacitorLeft;
+        float rightOutput = rightSample - _capacitorRight;
         
         _capacitorLeft = leftSample - leftOutput * CapacitorChargingRatio;
         _capacitorRight = rightSample - rightOutput * CapacitorChargingRatio;
+        
+        leftSample = leftOutput;
+        rightSample = rightOutput;
     }
 }
