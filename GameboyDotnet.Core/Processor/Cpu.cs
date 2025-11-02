@@ -19,7 +19,7 @@ public partial class Cpu
         MemoryController = memoryController;
     }
 
-    public byte ExecuteNextOperation()
+    public int ExecuteNextOperation()
     {
         bool interruptHandled = HandleInterrupt();
         
@@ -47,6 +47,15 @@ public partial class Cpu
         {
             Register.IMEPending = false;
             Register.InterruptsMasterEnabled = true;
+        }
+        
+        if (opCode is 0x10)
+        {
+            if (MemoryController.CgbState.IsCgbEnabled && !MemoryController.CgbState.SpeedSwitchArmed)
+            {
+                // CGB speed switch has happened
+                return (7200 + (interruptHandled ? 20 : 0));
+            }
         }
         
         return (byte)(operationSize.durationTStates + (interruptHandled ? 20 : 0));

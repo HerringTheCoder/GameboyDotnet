@@ -41,34 +41,16 @@ public class Ppu(MemoryController memoryController)
         if(!Lcd.Lcdc.IsBitSet(7))
             return;
         
-        var previousPpuMode = (PpuMode)(Lcd.Stat & 0b11);
-        var previousLy = Lcd.Ly;
         _cyclesCounter += cpuCycles;
-
-        switch (previousPpuMode)
+        
+        while (true)
         {
-            case PpuMode.OamScanMode2:
-                // Check WY=LY condition at the start of Mode 2 (OAM scan)
-                if (_ly == Lcd.Wy && Lcd.WindowDisplay == WindowDisplay.Enabled)
-                {
-                    _windowYConditionTriggered = true;
-                }
-                //Pixel FIFO?
-                break;
-            case PpuMode.VramAccessMode3:
-                if (_cyclesCounter >= Cycles.VramMode3CyclesThreshold)
-                {
-                    PushScanlineToBuffer();
-                }
-                break;
-            case PpuMode.HBlankMode0:
-                if (_cyclesCounter >= Cycles.HBlankMode0CyclesThreshold)
-                {
-                    _ly++;
-                    _cyclesCounter -= Cycles.HBlankMode0CyclesThreshold;
-                }
-                break;
-            case PpuMode.VBlankMode1:
+            var previousLy = _ly;
+            
+            // Process current scanline based on current state
+            if (_ly >= Lcd.ScreenHeight)
+            {
+                // VBlank mode
                 if (_cyclesCounter >= Cycles.VBlankMode1CyclesThreshold)
                 {
                     _ly++;
@@ -76,20 +58,82 @@ public class Ppu(MemoryController memoryController)
                     if (_ly == Lcd.ScreenHeight + 10)
                     {
                         _ly = 0;
-                        _windowLineCounter = 0; // Reset window line counter at the start of a new frame
-                        _windowYConditionTriggered = false; // Reset WY condition for new frame
+                        _windowLineCounter = 0;
+                        _windowYConditionTriggered = false;
                     }
                 }
-                break;
+                else
+                {
+                    break;
+                }
+            }
+            else
+            {
+                // Visible scanline modes
+                if (_cyclesCounter < Cycles.OamScanMode2CyclesThreshold)
+                {
+                    // Still in OAM scan
+                    if (_ly == Lcd.Wy && Lcd.WindowDisplay == WindowDisplay.Enabled)
+                    {
+                        _windowYConditionTriggered = true;
+                    }
+                    break;
+                }
+                else if (_cyclesCounter < Cycles.VramMode3CyclesThreshold)
+                {
+                    // Still in VRAM access
+                    break;
+                }
+                else if (_cyclesCounter < Cycles.HBlankMode0CyclesThreshold)
+                {
+                    // Still in HBlank
+                    if (_cyclesCounter >= Cycles.VramMode3CyclesThreshold && _cyclesCounter < Cycles.HBlankMode0CyclesThreshold)
+                    {
+                        var previousPpuMode = (PpuMode)(Lcd.Stat & 0b11);
+                        if (previousPpuMode == PpuMode.VramAccessMode3)
+                        {
+                            PushScanlineToBuffer();
+                        }
+                        
+                        if (memoryController.CgbState.HdmaActive && memoryController.CgbState.HdmaIsHBlankMode)
+                        {
+                            memoryController.PerformHBlankDmaBlock();
+                        }
+                    }
+                    break;
+                }
+                else
+                {
+                    // End of scanline, move to next line
+                    if (_cyclesCounter >= Cycles.VramMode3CyclesThreshold)
+                    {
+                        var previousPpuMode = (PpuMode)(Lcd.Stat & 0b11);
+                        if (previousPpuMode == PpuMode.VramAccessMode3)
+                        {
+                            PushScanlineToBuffer();
+                        }
+                    }
+                    
+                    if (memoryController.CgbState.HdmaActive && memoryController.CgbState.HdmaIsHBlankMode)
+                    {
+                        memoryController.PerformHBlankDmaBlock();
+                    }
+                    
+                    _ly++;
+                    _cyclesCounter -= Cycles.HBlankMode0CyclesThreshold;
+                }
+            }
+            
+            if (previousLy != _ly)
+            {
+                Lcd.UpdateLy(_ly);
+            }
         }
         
-        if (previousLy != _ly)
-        {
-            Lcd.UpdateLy(_ly);
-        }
-
+        // Update PPU mode based on final state
         var currentPpuMode = CalculateCurrentPpuMode();
-        if (previousPpuMode != currentPpuMode)
+        var previousMode = (PpuMode)(Lcd.Stat & 0b11);
+        if (previousMode != currentPpuMode)
         {
             Lcd.UpdatePpuMode(currentPpuMode);
         }
@@ -109,6 +153,9 @@ public class Ppu(MemoryController memoryController)
         Span<(int x, ushort oamOffset)> visibleSprites = stackalloc (int x, ushort oamOffset)[10];
         var visibleSpritesCount = 0;
         
+        bool isCgbMode = memoryController.CgbState.IsCgbEnabled;
+        bool useDmgPriority = isCgbMode && memoryController.CgbState.DmgStyleObjectPriority;
+        
         // Collect visible sprites
         for (ushort oamOffset = 0;
              oamOffset < 160 && visibleSpritesCount < 10;
@@ -124,14 +171,18 @@ public class Ppu(MemoryController memoryController)
             visibleSprites[visibleSpritesCount++] = (x, oamOffset);
         }
         
-        // Sort sprites by X coordinate (leftmost/smallest X has priority)
-        for (var i = 0; i < visibleSpritesCount - 1; i++)
+        // Sort sprites by X coordinate (leftmost/smallest X has priority) in DMG mode or when DMG priority is set
+        // In CGB mode with CGB priority, OAM order takes precedence
+        if (!isCgbMode || useDmgPriority)
         {
-            for (var j = i + 1; j < visibleSpritesCount; j++)
+            for (var i = 0; i < visibleSpritesCount - 1; i++)
             {
-                if (visibleSprites[j].x < visibleSprites[i].x)
+                for (var j = i + 1; j < visibleSpritesCount; j++)
                 {
-                    (visibleSprites[i], visibleSprites[j]) = (visibleSprites[j], visibleSprites[i]);
+                    if (visibleSprites[j].x < visibleSprites[i].x)
+                    {
+                        (visibleSprites[i], visibleSprites[j]) = (visibleSprites[j], visibleSprites[i]);
+                    }
                 }
             }
         }
@@ -143,7 +194,7 @@ public class Ppu(MemoryController memoryController)
             var y = oamMemoryView[oamOffset] - 16;
             var tileNumber = oamMemoryView[oamOffset.Add(2)];
             var objAttributes = oamMemoryView[oamOffset.Add(3)];
-            var attributes = ExtractObjectAttributes(ref objAttributes);
+            var attributes = ExtractObjectAttributes(ref objAttributes, isCgbMode);
             var objSize = (byte)Lcd.ObjSize;
             const byte spriteWidth = 8;
 
@@ -152,45 +203,104 @@ public class Ppu(MemoryController memoryController)
                 tileNumber &= 0xFE;
             }
 
-            var tileAddress = (ushort)(0x8000 + tileNumber * 16);
-            //Calculate tile line to render
-            var tileLine = attributes.yFlipped ? objSize - 1 - (_ly - y) : _ly - y;
-            var tileLineAddress = tileAddress.Add((ushort)(tileLine * 2));
-            var tileLineData = memoryController.ReadWord(tileLineAddress);
-
-            for (var pixel = 0; pixel < spriteWidth; pixel++)
+            // In CGB mode, check VRAM bank bit
+            if (isCgbMode && attributes.cgbVramBank)
             {
-                //Calculate pixel position
-                var pixelPos = attributes.xFlipped ? pixel : spriteWidth - 1 - pixel;
-
-                //Combine 2 pixel data bytes (2BPP) to get the color number at corresponding pixel
-                //i.e. Combine word bits at the same bytes position, 15+7, 14+6 and so on...
-                var pixelColor = (ushort)(tileLineData.GetBit(pixelPos + 8) << 1 |
-                                          tileLineData.GetBit(pixelPos));
-
-                //Skip if pixel is outside of screen or transparent
-                if (x + pixel is < 0 or >= Lcd.ScreenWidth || pixelColor == 0)
-                    continue;
-
-                var screenX = x + pixel;
+                var originalBank = memoryController.CgbState.CurrentVramBank;
+                memoryController.CgbState.CurrentVramBank = 1;
                 
-                //Get color from palette
-                var paletteColor = GetPaletteColorByPixelColor(ref attributes.palette, ref pixelColor);
+                var tileAddress = (ushort)(0x8000 + tileNumber * 16);
+                var tileLine = attributes.yFlipped ? objSize - 1 - (_ly - y) : _ly - y;
+                var tileLineAddress = tileAddress.Add((ushort)(tileLine * 2));
+                var tileLineData = memoryController.ReadWord(tileLineAddress);
                 
-                bool shouldDrawSprite;
-                if (Lcd.BgWindowDisplayPriority == BgWindowDisplayPriority.Low)
+                memoryController.CgbState.CurrentVramBank = originalBank;
+
+                for (var pixel = 0; pixel < spriteWidth; pixel++)
                 {
-                    shouldDrawSprite = true;
+                    var pixelPos = attributes.xFlipped ? pixel : spriteWidth - 1 - pixel;
+                    var pixelColor = (ushort)(tileLineData.GetBit(pixelPos + 8) << 1 |
+                                              tileLineData.GetBit(pixelPos));
+
+                    if (x + pixel is < 0 or >= Lcd.ScreenWidth || pixelColor == 0)
+                        continue;
+
+                    var screenX = x + pixel;
+                    
+                    bool shouldDrawSprite = ShouldDrawSprite(screenX, attributes.objToBackgroundPriority, isCgbMode);
+                    
+                    if (shouldDrawSprite)
+                        SetCgbPixel(screenX, _ly, pixelColor, attributes.cgbPaletteNumber, isBackground: false);
                 }
-                else
-                {
-                    var bgRawColor = _bgColorLine[screenX];
-                    shouldDrawSprite = !attributes.objToBackgroundPriority || bgRawColor == 0;
-                }
-                
-                if (shouldDrawSprite)
-                    Lcd.Buffer[screenX, _ly] = paletteColor;
             }
+            else
+            {
+                var tileAddress = (ushort)(0x8000 + tileNumber * 16);
+                var tileLine = attributes.yFlipped ? objSize - 1 - (_ly - y) : _ly - y;
+                var tileLineAddress = tileAddress.Add((ushort)(tileLine * 2));
+                var tileLineData = memoryController.ReadWord(tileLineAddress);
+
+                for (var pixel = 0; pixel < spriteWidth; pixel++)
+                {
+                    var pixelPos = attributes.xFlipped ? pixel : spriteWidth - 1 - pixel;
+                    var pixelColor = (ushort)(tileLineData.GetBit(pixelPos + 8) << 1 |
+                                              tileLineData.GetBit(pixelPos));
+
+                    if (x + pixel is < 0 or >= Lcd.ScreenWidth || pixelColor == 0)
+                        continue;
+
+                    var screenX = x + pixel;
+                    
+                    bool shouldDrawSprite = ShouldDrawSprite(screenX, attributes.objToBackgroundPriority, isCgbMode);
+                    
+                    if (shouldDrawSprite)
+                    {
+                        if (isCgbMode)
+                        {
+                            SetCgbPixel(screenX, _ly, pixelColor, attributes.cgbPaletteNumber, isBackground: false);
+                        }
+                        else
+                        {
+                            var paletteColor = GetPaletteColorByPixelColor(ref attributes.palette, ref pixelColor);
+                            Lcd.Buffer[screenX, _ly] = paletteColor;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool ShouldDrawSprite(int screenX, bool objToBackgroundPriority, bool isCgbMode)
+    {
+        if (!isCgbMode)
+        {
+            // DMG mode
+            if (Lcd.BgWindowDisplayPriority == BgWindowDisplayPriority.Low)
+            {
+                return true;
+            }
+            else
+            {
+                var bgRawColor = _bgColorLine[screenX];
+                return !objToBackgroundPriority || bgRawColor == 0;
+            }
+        }
+        else
+        {
+            // CGB mode
+            var bgRawColor = _bgColorLine[screenX];
+            
+            // If LCDC.0 is off, sprites are always drawn
+            if (Lcd.BgWindowDisplayPriority == BgWindowDisplayPriority.Low)
+                return true;
+            
+            // If BG color is 0, sprite is drawn
+            if (bgRawColor == 0)
+                return true;
+            
+            // Otherwise, check OBJ-to-BG priority bit
+            return !objToBackgroundPriority;
         }
     }
     
@@ -201,16 +311,18 @@ public class Ppu(MemoryController memoryController)
         var scx = Lcd.Scx;
         var scy = Lcd.Scy;
         var palette = Lcd.Bgp;
+        
+        bool isCgbMode = memoryController.CgbState.IsCgbEnabled;
 
         // In DMG mode, when LCDC bit 0 is clear, both BG and Window are disabled
-        // TODO: In CGB mode, LCDC bit 0 changes priority behavior but doesn't disable BG/Window
+        // In CGB mode, LCDC bit 0 changes priority behavior but doesn't disable BG/Window
         bool isBgWindowEnabled = Lcd.BgWindowDisplayPriority == BgWindowDisplayPriority.High;
         
         // Window is visible if:
-        // 1. BG/Window is enabled (LCDC bit 0)
+        // 1. BG/Window is enabled (LCDC bit 0) in DMG mode, or always in CGB mode
         // 2. Window is enabled (LCDC bit 5)
         // 3. WY condition was triggered (WY=LY happened at some Mode 2 this frame)
-        bool isWindowActive = isBgWindowEnabled && 
+        bool isWindowActive = (isCgbMode || isBgWindowEnabled) && 
                              Lcd.WindowDisplay is WindowDisplay.Enabled && 
                              _windowYConditionTriggered;
         bool windowRenderedThisLine = false;
@@ -233,44 +345,144 @@ public class Ppu(MemoryController memoryController)
             var tileLineIndex = (byte)((yPos & 0b111) * 2);
             var tileRowIndex = (ushort)(yPos / 8 * 32);
             var tileColumnIndex = (ushort)(xPos / 8);
-            var tileAddress = (ushort)(baseTileMapAddress + tileRowIndex + tileColumnIndex);
-
-            var tileNumber = Lcd.TileDataSelect switch
+            var tileMapAddress = (ushort)(baseTileMapAddress + tileRowIndex + tileColumnIndex);
+            
+            var tileIndex = memoryController.ReadByte(tileMapAddress);
+            
+            // In CGB mode, read tile attributes from VRAM bank 1
+            byte tileAttributes = 0;
+            byte cgbPaletteNumber = 0;
+            bool xFlip = false;
+            bool yFlip = false;
+            bool vramBank = false;
+            bool bgToOamPriority = false;
+            
+            if (isCgbMode)
             {
-                BgWindowTileDataArea.Unsigned8000
-                    => (ushort)(0x8000 + memoryController.ReadByte(tileAddress) * 16),
-                BgWindowTileDataArea.Signed8800
-                    => (ushort)(0x8800 + ((sbyte)memoryController.ReadByte(tileAddress) + 128) * 16),
-                _ => throw new ArgumentOutOfRangeException()
-            };
+                // Switch to VRAM bank 1 to read attributes
+                var originalBank = memoryController.CgbState.CurrentVramBank;
+                memoryController.CgbState.CurrentVramBank = 1;
+                tileAttributes = memoryController.ReadByte(tileMapAddress);
+                memoryController.CgbState.CurrentVramBank = originalBank;
+                
+                // Parse CGB tile attributes
+                cgbPaletteNumber = (byte)(tileAttributes & 0x07);
+                vramBank = (tileAttributes & 0x08) != 0;
+                xFlip = (tileAttributes & 0x20) != 0;
+                yFlip = (tileAttributes & 0x40) != 0;
+                bgToOamPriority = (tileAttributes & 0x80) != 0;
+            }
 
-            var tileData = memoryController.ReadWord((ushort)(tileNumber + tileLineIndex));
-
-            var bitIndex = 7 - (xPos & 0b111);
-            var pixelColor = (ushort)((tileData.GetBit(bitIndex + 8) << 1) |
-                                      tileData.GetBit(bitIndex));
-
-            // Store raw pixel color for sprite priority checks
-            _bgColorLine[pixel] = (byte)pixelColor;
-
-            //Get color from BGP palette
-            var paletteColor = GetPaletteColorByPixelColor(ref palette, ref pixelColor);
-
-            // DMG mode behavior: When LCDC bit 0 is clear, both BG and Window become white
-            // CGB mode behavior: LCDC bit 0 affects priority but BG/Window still render
-            if (!isBgWindowEnabled)
+            // Get tile data from appropriate VRAM bank
+            if (isCgbMode && vramBank)
             {
-                Lcd.Buffer[pixel, _ly] = 0; // Force white (DMG mode)
+                var originalBank = memoryController.CgbState.CurrentVramBank;
+                memoryController.CgbState.CurrentVramBank = 1;
+                
+                var tileNumber = Lcd.TileDataSelect switch
+                {
+                    BgWindowTileDataArea.Unsigned8000
+                        => (ushort)(0x8000 + tileIndex * 16),
+                    BgWindowTileDataArea.Signed8800
+                        => (ushort)(0x8800 + ((sbyte)tileIndex + 128) * 16),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                
+                var tileLine = yFlip ? (7 - (yPos & 0b111)) : (yPos & 0b111);
+                var tileData = memoryController.ReadWord((ushort)(tileNumber + tileLine * 2));
+                memoryController.CgbState.CurrentVramBank = originalBank;
+                
+                var bitIndex = xFlip ? (xPos & 0b111) : (7 - (xPos & 0b111));
+                var pixelColor = (ushort)((tileData.GetBit(bitIndex + 8) << 1) |
+                                          tileData.GetBit(bitIndex));
+                
+                _bgColorLine[pixel] = (byte)pixelColor;
+                
+                if (isCgbMode || isBgWindowEnabled)
+                {
+                    SetCgbPixel(pixel, _ly, pixelColor, cgbPaletteNumber, isBackground: true);
+                }
+                else
+                {
+                    Lcd.Buffer[pixel, _ly] = 0;
+                }
             }
             else
             {
-                Lcd.Buffer[pixel, _ly] = paletteColor;
+                var tileNumber = Lcd.TileDataSelect switch
+                {
+                    BgWindowTileDataArea.Unsigned8000
+                        => (ushort)(0x8000 + tileIndex * 16),
+                    BgWindowTileDataArea.Signed8800
+                        => (ushort)(0x8800 + ((sbyte)tileIndex + 128) * 16),
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+
+                var tileLine = yFlip ? (7 - (yPos & 0b111)) : (yPos & 0b111);
+                var tileData = memoryController.ReadWord((ushort)(tileNumber + tileLine * 2));
+
+                var bitIndex = xFlip ? (xPos & 0b111) : (7 - (xPos & 0b111));
+                var pixelColor = (ushort)((tileData.GetBit(bitIndex + 8) << 1) |
+                                          tileData.GetBit(bitIndex));
+
+                // Store raw pixel color for sprite priority checks
+                _bgColorLine[pixel] = (byte)pixelColor;
+
+                if (isCgbMode)
+                {
+                    SetCgbPixel(pixel, _ly, pixelColor, cgbPaletteNumber, isBackground: true);
+                }
+                else
+                {
+                    //Get color from BGP palette
+                    var paletteColor = GetPaletteColorByPixelColor(ref palette, ref pixelColor);
+
+                    // DMG mode behavior: When LCDC bit 0 is clear, both BG and Window become white
+                    if (!isBgWindowEnabled)
+                    {
+                        Lcd.Buffer[pixel, _ly] = 0; // Force white (DMG mode)
+                    }
+                    else
+                    {
+                        Lcd.Buffer[pixel, _ly] = paletteColor;
+                    }
+                }
             }
         }
         
         // Increment window line counter if window was rendered this scanline
         if (windowRenderedThisLine)
             _windowLineCounter++;
+    }
+    
+    /// <summary>
+    /// Sets a pixel in CGB mode using the color palette system
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetCgbPixel(int x, int y, ushort colorIndex, byte paletteNumber, bool isBackground)
+    {
+        // Get the palette memory (background or object)
+        var paletteMemory = isBackground 
+            ? memoryController.CgbState.BackgroundPaletteMemory 
+            : memoryController.CgbState.ObjectPaletteMemory;
+        
+        // Calculate palette address: paletteNumber * 8 + colorIndex * 2
+        int paletteAddr = (paletteNumber * 8) + (colorIndex * 2);
+        
+        // Read RGB555 color (little-endian)
+        ushort rgb555 = (ushort)(paletteMemory[paletteAddr] | (paletteMemory[paletteAddr + 1] << 8));
+        
+        // Convert to RGB888
+        var (r, g, b) = CgbState.ConvertRgb555ToRgb888(rgb555);
+        
+        // Store in color buffer
+        Lcd.ColorBuffer[x, y, 0] = r;
+        Lcd.ColorBuffer[x, y, 1] = g;
+        Lcd.ColorBuffer[x, y, 2] = b;
+        
+        // Also update the DMG buffer for compatibility (convert to grayscale)
+        byte gray = (byte)((r + g + b) / 3);
+        Lcd.Buffer[x, y] = (byte)(gray >> 6); // Convert 0-255 to 0-3
     }
     
     private static byte GetPaletteColorByPixelColor(ref byte palette, ref ushort pixelColor)
@@ -285,14 +497,30 @@ public class Ppu(MemoryController memoryController)
         };
     }
     
-    private (bool objToBackgroundPriority, bool yFlipped, bool xFlipped, byte palette) ExtractObjectAttributes(
-        ref byte objectAttributes)
+    private (bool objToBackgroundPriority, bool yFlipped, bool xFlipped, byte palette, byte cgbPaletteNumber, bool cgbVramBank) 
+        ExtractObjectAttributes(ref byte objectAttributes, bool isCgbMode)
     {
-        return (
-            objectAttributes.IsBitSet(7),
-            objectAttributes.IsBitSet(6),
-            objectAttributes.IsBitSet(5),
-            objectAttributes.IsBitSet(4) ? Lcd.Obp1 : Lcd.Obp0 //TODO: GBC mode palette
-        );
+        bool objToBackgroundPriority = objectAttributes.IsBitSet(7);
+        bool yFlipped = objectAttributes.IsBitSet(6);
+        bool xFlipped = objectAttributes.IsBitSet(5);
+        
+        if (isCgbMode)
+        {
+            // In CGB mode:
+            // Bit 4 is still used for DMG palette selection for backwards compatibility
+            // Bit 3 selects VRAM bank (0 or 1)
+            // Bits 0-2 select CGB palette (0-7)
+            byte dmgPalette = objectAttributes.IsBitSet(4) ? Lcd.Obp1 : Lcd.Obp0;
+            bool vramBank = objectAttributes.IsBitSet(3);
+            byte cgbPalette = (byte)(objectAttributes & 0x07);
+            
+            return (objToBackgroundPriority, yFlipped, xFlipped, dmgPalette, cgbPalette, vramBank);
+        }
+        else
+        {
+            // DMG mode
+            byte palette = objectAttributes.IsBitSet(4) ? Lcd.Obp1 : Lcd.Obp0;
+            return (objToBackgroundPriority, yFlipped, xFlipped, palette, 0, false);
+        }
     }
 }

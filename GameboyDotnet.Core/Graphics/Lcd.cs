@@ -11,7 +11,12 @@ public class Lcd(MemoryController memoryController)
 {
     public const int ScreenHeight = 144;
     public const int ScreenWidth = 160;
+    
+    // DMG mode: 2-bit grayscale palette index (0-3)
     public byte[,] Buffer = new byte[160, 144];
+    
+    // CGB mode: RGB888 color buffer
+    public byte[,,] ColorBuffer = new byte[160, 144, 3]; // [x, y, rgb]
 
     public byte Lcdc => memoryController.IoRegisters.MemorySpace[0x40];
     public byte Lyc => memoryController.IoRegisters.MemorySpace[0x45];

@@ -90,6 +90,74 @@ public static class SdlRenderer
             throw;
         }
     }
+    
+    /// <summary>
+    /// Renders CGB color frames (RGB888 format)
+    /// </summary>
+    public static void RenderColorStates(ref IntPtr renderer, ref IntPtr window, byte[,,] colorFrame, string fpsText)
+    {
+        try
+        {
+            SDL_GetWindowSize(window, out int windowWidth, out int windowHeight);
+
+            // Calculate scaling factors for width and height
+            float scaleX = (float)windowWidth / ScreenWidth;
+            float scaleY = (float)windowHeight / ScreenHeight;
+
+            // Determine the smaller scaling factor to maintain aspect ratio
+            double scale = Math.Ceiling(Math.Min(scaleX, scaleY));
+
+            // Calculate scaled window size
+            int scaledWidth = (int)(ScreenWidth * scale);
+            int scaledHeight = (int)(ScreenHeight * scale);
+            
+            SDL_RenderSetLogicalSize(renderer, scaledWidth, scaledHeight);
+            SDL_SetRenderDrawColor(renderer, DarkGray.r, DarkGray.g, DarkGray.b, 128);
+            SDL_RenderClear(renderer);
+            
+            // Draw the Gameboy screen area
+            SDL_Rect gameboyScreenRect = new SDL_Rect
+            {
+                x = 0,
+                y = 0,
+                w = scaledWidth,
+                h = scaledHeight
+            };
+            SDL_SetRenderDrawColor(renderer, White.r, White.g, White.b, White.a);
+            SDL_RenderFillRect(renderer, ref gameboyScreenRect);
+
+            // Draw pixels with RGB color
+            for (int y = 0; y < ScreenHeight; y++)
+            {
+                for (int x = 0; x < ScreenWidth; x++)
+                {
+                    byte r = colorFrame[x, y, 0];
+                    byte g = colorFrame[x, y, 1];
+                    byte b = colorFrame[x, y, 2];
+                    
+                    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+                    SDL_Rect rect = new SDL_Rect
+                    {
+                        x = (int)(x * scale),
+                        y = (int)(y * scale),
+                        w = (int)scale,
+                        h = (int)scale
+                    };
+                    SDL_RenderFillRect(renderer, ref rect);
+                }
+            }
+
+            // Display FPS
+            RenderText(ref renderer, fpsText, 15, 50);
+
+            SDL_RenderPresent(renderer);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex.Message);
+            throw;
+        }
+    }
 
     public static (nint renderer, nint window) InitializeRendererAndWindow(ILogger<Gameboy> logger, EmulatorSettings emulatorSettings)
     {

@@ -319,10 +319,27 @@ public partial class Cpu
     private (byte instructionBytesLength, byte durationTStates) Stop(ref byte opCode)
     {
         if(_logger.IsEnabled(LogLevel.Debug))
-            _logger.LogDebug("{opcode:X} - STOP - Stopping CPU", opCode);
+            _logger.LogDebug("{opcode:X} - STOP", opCode);
         
+        // Check if speed switch is armed in CGB mode
+        if (MemoryController.CgbState.IsCgbEnabled && MemoryController.CgbState.SpeedSwitchArmed)
+        {
+            // Perform speed switch
+            Cycles.CgbDoubleSpeedMode = !Cycles.CgbDoubleSpeedMode;
+            MemoryController.CgbState.SpeedSwitchArmed = false;
+            
+            _logger.LogInformation("CGB speed switched to: {Speed} mode", 
+                Cycles.CgbDoubleSpeedMode ? "Double" : "Normal");
+            
+            // STOP instruction during speed switch takes 2050 M-cycles (8200 T-cycles)
+            // Since return type is byte (max 255), we return a reasonable approximation
+            // The actual timing behavior during speed switch isn't critical for most games
+            // TODO: Consider implementing a more precise timing mechanism if needed
+            return (2, 4);
+        }
+        
+        // Normal STOP behavior: halt until interrupt
         IsHalted = true;
-        //TODO: Implement GBC mode switch if needed
         return (2, 4);
     }
 }

@@ -43,7 +43,14 @@ public static class MbcFactory
             0x12 => new Mbc3("MBC3+Ram", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
             0x13 => new Mbc3("MBC3+Ram+Battery", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
 
-            _ => throw new Exception("Unsupported cartridge type")
+            0x19 => new Mbc5("MBC5", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+            0x1A => new Mbc5("MBC5+Ram", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+            0x1B => new Mbc5("MBC5+Ram+Battery", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+            0x1C => new Mbc5("MBC5+Rumble", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+            0x1D => new Mbc5("MBC5+Rumble+Ram", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+            0x1E => new Mbc5("MBC5+Rumble+Ram+Battery", bankSizeInBytes: 0x4000, numberOfRomBanks, numberOfRamBanks),
+
+            _ => throw new Exception($"Unsupported cartridge type: 0x{cartridgeType:X2}")
         };
     }
 }

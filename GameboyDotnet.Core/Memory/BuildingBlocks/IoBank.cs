@@ -11,12 +11,20 @@ public class IoBank : FixedBank
     public byte DpadStates = 0xF;
     public byte ButtonStates = 0xF;
     private Apu _apu;
+    private CgbState _cgbState;
+    private MemoryController? _memoryController; // Will be set after construction
     
-    public IoBank(int startAddress, int endAddress, string name, ILogger<Gameboy> logger, Apu apu) 
+    public IoBank(int startAddress, int endAddress, string name, ILogger<Gameboy> logger, Apu apu, CgbState cgbState) 
         : base(startAddress, endAddress, name)
     {
         _apu = apu;
         _logger = logger;
+        _cgbState = cgbState;
+    }
+    
+    public void SetMemoryController(MemoryController memoryController)
+    {
+        _memoryController = memoryController;
     }
 
     public override void WriteByte(ref ushort address, ref byte value)
@@ -116,11 +124,170 @@ public class IoBank : FixedBank
             case 0xFF23:
                 _apu.NoiseChannel.SetPeriodHighControl(ref value);
                 break;
+            
+            // CGB-specific registers
+            case Constants.KEY1Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    // Only bit 0 is writable (speed switch armed flag)
+                    _cgbState.SpeedSwitchArmed = (value & 0x01) != 0;
+                    return;
+                }
+                break;
+                
+            case Constants.VBKRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.CurrentVramBank = (byte)(value & 0x01);
+                    _logger.LogDebug("VRAM bank switched to: {Bank}", _cgbState.CurrentVramBank);
+                    return;
+                }
+                break;
+                
+            case Constants.HDMA1Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.HdmaSource = (ushort)((_cgbState.HdmaSource & 0x00FF) | ((value & 0xFF) << 8));
+                }
+                break;
+                
+            case Constants.HDMA2Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.HdmaSource = (ushort)((_cgbState.HdmaSource & 0xFF00) | (value & 0xF0));
+                }
+                break;
+                
+            case Constants.HDMA3Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.HdmaDestination = (ushort)(0x8000 | (((value & 0x1F) << 8) | (_cgbState.HdmaDestination & 0x00FF)));
+                }
+                break;
+                
+            case Constants.HDMA4Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.HdmaDestination = (ushort)((_cgbState.HdmaDestination & 0xFF00) | (value & 0xF0));
+                }
+                break;
+                
+            case Constants.HDMA5Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    HandleHdmaTransfer(ref value);
+                    return;
+                }
+                break;
+                
+            case Constants.BCPSRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.BackgroundPaletteIndex = value;
+                }
+                break;
+                
+            case Constants.BCPDRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte index = (byte)(_cgbState.BackgroundPaletteIndex & 0x3F);
+                    _cgbState.BackgroundPaletteMemory[index] = value;
+                    
+                    if ((_cgbState.BackgroundPaletteIndex & 0x80) != 0)
+                    {
+                        _cgbState.BackgroundPaletteIndex = (byte)(0x80 | ((index + 1) & 0x3F));
+                    }
+                    return;
+                }
+                break;
+                
+            case Constants.OCPSRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.ObjectPaletteIndex = value;
+                }
+                break;
+                
+            case Constants.OCPDRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte index = (byte)(_cgbState.ObjectPaletteIndex & 0x3F);
+                    _cgbState.ObjectPaletteMemory[index] = value;
+                    
+                    if ((_cgbState.ObjectPaletteIndex & 0x80) != 0)
+                    {
+                        _cgbState.ObjectPaletteIndex = (byte)(0x80 | ((index + 1) & 0x3F));
+                    }
+                    return;
+                }
+                break;
+                
+            case Constants.OPRIRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    _cgbState.DmgStyleObjectPriority = (value & 0x01) != 0;
+                }
+                break;
+                
+            case Constants.SVBKRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte bank = (byte)(value & 0x07);
+                    _cgbState.CurrentWramBank = bank == 0 ? (byte)1 : bank;
+                    _logger.LogDebug("WRAM bank switched to: {Bank}", _cgbState.CurrentWramBank);
+                    return;
+                }
+                break;
+                
             default:
                 break;
         }
         
         base.WriteByte(ref address, ref value);
+    }
+    
+    private void HandleHdmaTransfer(ref byte value)
+    {
+        bool isHBlankMode = (value & 0x80) != 0;
+        byte length = (byte)(value & 0x7F);
+        
+        if (_cgbState.HdmaActive && !isHBlankMode)
+        {
+            _cgbState.HdmaActive = false;
+            _cgbState.HdmaLength = (byte)(length | 0x80);
+            _logger.LogDebug("HBlank DMA terminated, remaining length: {Length}", length);
+            return;
+        }
+        
+        _cgbState.HdmaLength = length;
+        _cgbState.HdmaIsHBlankMode = isHBlankMode;
+        
+        if (isHBlankMode)
+        {
+            _cgbState.HdmaActive = true;
+            _logger.LogDebug("HBlank DMA started: source={Source:X4}, dest={Dest:X4}, length={Length}", 
+                _cgbState.HdmaSource, _cgbState.HdmaDestination, length);
+        }
+        else
+        {
+            PerformGeneralPurposeDma(length);
+        }
+    }
+    
+    private void PerformGeneralPurposeDma(byte length)
+    {
+        int bytesToTransfer = (length + 1) * 16;
+        
+        _logger.LogDebug("General Purpose DMA: source={Source:X4}, dest={Dest:X4}, bytes={Bytes}", 
+            _cgbState.HdmaSource, _cgbState.HdmaDestination, bytesToTransfer);
+        
+        if (_memoryController != null)
+        {
+            _memoryController.PerformHdmaTransfer(bytesToTransfer);
+        }
+        
+        _cgbState.HdmaLength = 0xFF;
+        _cgbState.HdmaActive = false;
     }
 
     public override byte ReadByte(ref ushort address)
@@ -136,6 +303,84 @@ public class IoBank : FixedBank
         if (address >= 0xFF30 && address <= 0xFF3F)
         {
             return _apu.WaveChannel.ReadWaveRam(ref address);
+        }
+        
+        // CGB-specific register reads
+        switch (address)
+        {
+            case Constants.KEY1Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte speedBit = Cycles.CgbDoubleSpeedMode ? (byte)0x80 : (byte)0x00;
+                    byte armedBit = _cgbState.SpeedSwitchArmed ? (byte)0x01 : (byte)0x00;
+                    return (byte)(speedBit | armedBit | 0x7E);
+                }
+                break;
+                
+            case Constants.VBKRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    return (byte)(_cgbState.CurrentVramBank | 0xFE);
+                }
+                return 0xFF;
+                
+            case Constants.HDMA5Register:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    if (_cgbState.HdmaActive)
+                    {
+                        return (byte)(_cgbState.HdmaLength & 0x7F);
+                    }
+                    else
+                    {
+                        return 0xFF;
+                    }
+                }
+                break;
+                
+            case Constants.BCPSRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    return _cgbState.BackgroundPaletteIndex;
+                }
+                break;
+                
+            case Constants.BCPDRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte index = (byte)(_cgbState.BackgroundPaletteIndex & 0x3F);
+                    return _cgbState.BackgroundPaletteMemory[index];
+                }
+                break;
+                
+            case Constants.OCPSRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    return _cgbState.ObjectPaletteIndex;
+                }
+                break;
+                
+            case Constants.OCPDRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    byte index = (byte)(_cgbState.ObjectPaletteIndex & 0x3F);
+                    return _cgbState.ObjectPaletteMemory[index];
+                }
+                break;
+                
+            case Constants.OPRIRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    return (byte)(_cgbState.DmgStyleObjectPriority ? 0x01 : 0x00);
+                }
+                break;
+                
+            case Constants.SVBKRegister:
+                if (_cgbState.IsCgbEnabled)
+                {
+                    return _cgbState.CurrentWramBank;
+                }
+                return 0xFF;
         }
         
         return base.ReadByte(ref address);

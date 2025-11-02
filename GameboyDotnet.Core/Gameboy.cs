@@ -35,7 +35,28 @@ public partial class Gameboy
     public void LoadProgram(FileStream stream)
     {
         Cpu.MemoryController.LoadProgram(stream);
-        _logger.LogInformation("Program loaded successfully");
+        
+        // Reset CGB speed mode to normal on load
+        Cycles.CgbDoubleSpeedMode = false;
+        
+        // Set register A based on hardware type for CGB detection
+        // 0x01 = DMG, 0x11 = CGB/GBA
+        if (MemoryController.CgbState.EmulatedHardware == HardwareType.Cgb)
+        {
+            Cpu.Register.A = 0x11;
+            _logger.LogInformation("Emulating CGB hardware (A=0x11)");
+        }
+        else
+        {
+            Cpu.Register.A = 0x01;
+            _logger.LogInformation("Emulating DMG hardware (A=0x01)");
+        }
+        
+        // Update FrameBuffer with CGB mode status
+        Ppu.FrameBuffer.IsCgbMode = MemoryController.CgbState.IsCgbEnabled;
+        
+        _logger.LogInformation("Program loaded successfully - CGB features {Status}", 
+            MemoryController.CgbState.IsCgbEnabled ? "ENABLED" : "DISABLED");
     }
 
     public Task RunAsync(bool frameLimitEnabled, CancellationToken ctsToken)
@@ -43,7 +64,6 @@ public partial class Gameboy
         IsFrameLimiterEnabled = frameLimitEnabled;
         var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks; //~59.7 Hz
         
-        var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
 
         while (!ctsToken.IsCancellationRequested)
@@ -53,14 +73,26 @@ public partial class Gameboy
                 var startTime = Stopwatch.GetTimestamp();
                 var targetTime = startTime + frameTimeTicks;
                 
-                while (currentCycles < cyclesPerFrame) //70224(Gameboy) or 140448 (Gameboy Color)
+                // Recalculate cycles per frame dynamically to support speed switching
+                var cyclesPerFrame = Cycles.CyclesPerFrame;
+                
+                while (currentCycles < cyclesPerFrame) //70224(Gameboy) or 140448 (Gameboy Color in double speed)
                 {
-                    var tStates = Cpu.ExecuteNextOperation();
-                    Ppu.PushPpuCycles(tStates);
-                    TimaTimer.CheckAndIncrementTimer(ref tStates);
-                    DivTimer.CheckAndIncrementTimer(ref tStates);
-                    Apu.PushApuCycles(ref tStates);
-                    currentCycles += tStates;
+                    var instructionCycles = Cpu.ExecuteNextOperation();
+                    var divider = instructionCycles >= 7200 ? 255 : 4;
+                    var cycleIterations = instructionCycles / divider;
+                    byte cyclesRemainder = (byte)(instructionCycles % divider);
+                    
+                    for (byte i = 0; i <= cycleIterations; i++)
+                    {
+                        var tStates = cycleIterations == i ? cyclesRemainder : (byte)divider;
+                        Ppu.PushPpuCycles(tStates);
+                        TimaTimer.CheckAndIncrementTimer(ref tStates);
+                        DivTimer.CheckAndIncrementTimer(ref tStates);
+                        Apu.PushApuCycles(ref tStates);
+                        currentCycles += tStates;
+                    }
+                   
                 }
                 
                 UpdateJoypadState();

@@ -106,18 +106,45 @@ while (running && !cts.IsCancellationRequested)
         }
     }
     
-    if(gameboy.Ppu.FrameBuffer.TryDequeueFrame(out var frame))
+    // Handle frame rendering based on CGB mode
+    bool isCgbMode = gameboy.Ppu.FrameBuffer.IsCgbMode;
+    
+    if (isCgbMode)
     {
-        string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps/ 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS";
-        if(userActionTextFrameCounter > 0)
+        // CGB mode: render color frames
+        if (gameboy.Ppu.FrameBuffer.TryDequeueColorFrame(out var colorFrame))
         {
-            userActionTextFrameCounter--;
+            string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps / 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS [CGB]";
+            if (userActionTextFrameCounter > 0)
+            {
+                userActionTextFrameCounter--;
+            }
+            else
+            {
+                userActionText = string.Empty;
+            }
+            SdlRenderer.RenderColorStates(ref renderer, ref window, colorFrame!, string.Join(" \n ", bufferedFramesText, userActionText));
+            
+            // Also dequeue DMG frame to keep queues in sync
+            gameboy.Ppu.FrameBuffer.TryDequeueFrame(out _);
         }
-        else
+    }
+    else
+    {
+        // DMG mode: render grayscale frames
+        if (gameboy.Ppu.FrameBuffer.TryDequeueFrame(out var frame))
         {
-            userActionText = string.Empty;
+            string bufferedFramesText = $"Speed: {gameboy.Ppu.FrameBuffer.Fps / 60.0 * 100.0:0.0}% / {gameboy.Ppu.FrameBuffer.Fps:0} FPS";
+            if (userActionTextFrameCounter > 0)
+            {
+                userActionTextFrameCounter--;
+            }
+            else
+            {
+                userActionText = string.Empty;
+            }
+            SdlRenderer.RenderStates(ref renderer, ref window, frame!, string.Join(" \n ", bufferedFramesText, userActionText));
         }
-        SdlRenderer.RenderStates(ref renderer, ref window, frame!, string.Join(" \n ", bufferedFramesText, userActionText));
     }
 }
 

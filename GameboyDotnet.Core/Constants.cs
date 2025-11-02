@@ -25,4 +25,21 @@ public static class Constants
     public const ushort OBP1Register = 0xFF49;
     public const ushort WYRegister = 0xFF4A;
     public const ushort WXRegister = 0xFF4B;
+    
+    //CGB Registers
+    public const ushort KEY0Register = 0xFF4C; // CPU mode select (CGB only)
+    public const ushort KEY1Register = 0xFF4D; // Prepare speed switch (CGB only)
+    public const ushort VBKRegister = 0xFF4F; // VRAM bank (CGB only)
+    public const ushort HDMA1Register = 0xFF51; // VRAM DMA source high (CGB only)
+    public const ushort HDMA2Register = 0xFF52; // VRAM DMA source low (CGB only)
+    public const ushort HDMA3Register = 0xFF53; // VRAM DMA destination high (CGB only)
+    public const ushort HDMA4Register = 0xFF54; // VRAM DMA destination low (CGB only)
+    public const ushort HDMA5Register = 0xFF55; // VRAM DMA length/mode/start (CGB only)
+    public const ushort RPRegister = 0xFF56; // Infrared communications port (CGB only)
+    public const ushort BCPSRegister = 0xFF68; // Background color palette specification (CGB only)
+    public const ushort BCPDRegister = 0xFF69; // Background color palette data (CGB only)
+    public const ushort OCPSRegister = 0xFF6A; // Object color palette specification (CGB only)
+    public const ushort OCPDRegister = 0xFF6B; // Object color palette data (CGB only)
+    public const ushort OPRIRegister = 0xFF6C; // Object priority mode (CGB only)
+    public const ushort SVBKRegister = 0xFF70; // WRAM bank (CGB only)
 }
