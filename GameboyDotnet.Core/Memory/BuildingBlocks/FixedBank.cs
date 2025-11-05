@@ -4,6 +4,7 @@ public class FixedBank
 {
     public int StartAddress { get; init; } = 0;
     public int EndAddress { get; init; } = 0;
+    public Span<byte> MemorySpaceView => MemorySpace;
     public byte[] MemorySpace;
     public string Name { get; init; }
     

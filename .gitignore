@@ -32,3 +32,8 @@ _UpgradeReport_Files/
 Thumbs.db
 Desktop.ini
 .DS_Store
+/GameboyDotnet.SDL/Tests/
+All success tests from GameboyDotnet.Tests.testsession
+All tests from GameboyDotnet.Tests.testsession
+
+.idea/

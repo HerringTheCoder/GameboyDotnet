@@ -3,98 +3,148 @@ using GameboyDotnet.Memory.BuildingBlocks;
 
 namespace GameboyDotnet.Memory.Mbc;
 
-public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks)
-    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
+//https://gbdev.io/pandocs/MBC3.html
+
+public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks, int ramBankCount)
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks, ramBankCount)
 {
-    private byte RtcSeconds; // 0x08, RTC S register (0-59)
-    private byte RtcMinutes; // 0x09, RTC M register (0-59)
-    private byte RtcHours; // 0x0A, RTC H register (0-23)
-    private byte RtcDaysLow; // 0x0B, RTC DL register (0-255)
-    private byte RtcDaysHigh; // 0x0C, RTC DH register (0-1)
+    private int _romBankNumber;           // 7-bit register (0x2000-0x3FFF)
+    private int _ramBankOrRtcSelect;      // RAM bank 0x00-0x07 or RTC register 0x08-0x0C
+    private byte _latchClockData;         // For tracking the $00->$01 latch sequence
+    
+    // RTC Internal registers (writable, ticking)
+    private byte _rtcSeconds;
+    private byte _rtcMinutes;
+    private byte _rtcHours;
+    private byte _rtcDaysLow;
+    private byte _rtcDaysHigh;
+    
+    // RTC Latched registers (readable, frozen until next latch)
+    private byte _rtcSecondsLatched;
+    private byte _rtcMinutesLatched;
+    private byte _rtcHoursLatched;
+    private byte _rtcDaysLowLatched;
+    private byte _rtcDaysHighLatched;
 
     public override void WriteByte(ref ushort address, ref byte value)
     {
-        if (ExternalRamEnabled && address is >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd)
-        {
-            switch (ExternalRam.CurrentBank)
-            {
-                case 0x00 or 0x01 or 0x02 or 0x03:
-                    ExternalRam.WriteByte(ref address, ref value);
-                    break;
-                case 0x08:
-                    RtcSeconds = value;
-                    break;
-                case 0x09:
-                    RtcMinutes = value;
-                    break;
-                case 0x0A:
-                    RtcHours = value;
-                    break;
-                case 0x0B:
-                    RtcDaysLow = value;
-                    break;
-                case 0x0C:
-                    RtcDaysHigh = value;
-                    break;
-            }
-
-            return;
-        }
-
         switch (address)
         {
             case <= 0x1FFF:
-                ExternalRamEnabled = (value & 0x0A) == 0x0A;
+                // RAM and Timer Enable: lower 4 bits must be 0xA
+                ExternalRamEnabled = (value & 0x0F) == 0x0A;
                 break;
+                
             case <= 0x3FFF:
-                CurrentBank = value & 0x7F;
-                if (CurrentBank == 0)
-                    CurrentBank = 1;
+                // ROM Bank Number (7 bits)
+                _romBankNumber = value & 0x7F;
+                UpdateRomBank();
                 break;
+                
             case <= 0x5FFF:
-                if (value is <= 0x03 or >= 0x08 and <= 0x0C)
-                    ExternalRam.CurrentBank = value;
+                // RAM Bank Number (0x00-0x07) or RTC Register Select (0x08-0x0C)
+                if (value is <= 0x07 or >= 0x08 and <= 0x0C)
+                    _ramBankOrRtcSelect = value;
                 break;
+                
             case <= 0x7FFF:
-                var currentTime = DateTime.Now; //TODO: Timezone config?
-                RtcSeconds = (byte)currentTime.Second;
-                RtcMinutes = (byte)currentTime.Minute;
-                RtcHours = (byte)currentTime.Hour;
+                // Latch Clock Data: Write $00 then $01 to latch
+                if (_latchClockData == 0x00 && value == 0x01)
+                    LatchRtcRegisters();
+                _latchClockData = value;
+                break;
+                
+            case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd:
+                WriteRamOrRtc(ref address, ref value);
                 break;
         }
-        
-        //Only External Ram writes are allowed
-        if (address is < BankAddress.ExternalRamStart or > BankAddress.ExternalRamEnd) 
-            return;
-        
+    }
+    
+    private void WriteRamOrRtc(ref ushort address, ref byte value)
+    {
         if (!ExternalRamEnabled)
             return;
             
-        ExternalRam.WriteByte(ref address, ref value);
+        switch (_ramBankOrRtcSelect)
+        {
+            case <= 0x07 when ExternalRam.NumberOfBanks > 0:
+                // RAM Bank write
+                ExternalRam.CurrentBank = _ramBankOrRtcSelect % ExternalRam.NumberOfBanks;
+                ExternalRam.WriteByte(ref address, ref value);
+                break;
+            case 0x08:
+                _rtcSeconds = (byte)(value & 0x3F); // 0-59
+                break;
+            case 0x09:
+                _rtcMinutes = (byte)(value & 0x3F); // 0-59
+                break;
+            case 0x0A:
+                _rtcHours = (byte)(value & 0x1F); // 0-23
+                break;
+            case 0x0B:
+                _rtcDaysLow = value;
+                break;
+            case 0x0C:
+                _rtcDaysHigh = (byte)(value & 0xC1); // Bits 0, 6, 7 only
+                break;
+        }
     }
 
     public override byte ReadByte(ref ushort address)
     {
-        switch (address)
+        return address switch
         {
-            case <= BankAddress.RomBank0End:
-                return MemorySpace[address];
-            case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd when !ExternalRamEnabled:
-                return 0xFF;
-            case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd:
-                return ExternalRam.CurrentBank switch
-                {
-                    0x00 or 0x01 or 0x02 or 0x03 => ExternalRam.ReadByte(ref address),
-                    0x08 => RtcSeconds,
-                    0x09 => RtcMinutes,
-                    0x0A => RtcHours,
-                    0x0B => RtcDaysLow,
-                    0x0C => RtcDaysHigh,
-                    _ => 0xFF
-                };
-            default:
-                return MemorySpace[CurrentBank * BankSizeInBytes + address - BankAddress.RomBankNnStart];
-        }
+            // 0000-3FFF: ROM Bank 00
+            <= BankAddress.RomBank0End 
+                => MemorySpace[address - StartAddress],
+            // A000-BFFF: RAM Bank or RTC Register
+            >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
+                => ReadRamOrRtc(ref address),
+            // 4000-7FFF: Switchable ROM Bank
+            _ => MemorySpace[(CurrentBank % NumberOfBanks) * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
+        };
+    }
+    
+    private byte ReadRamOrRtc(ref ushort address)
+    {
+        if (!ExternalRamEnabled)
+            return 0xFF;
+            
+        return _ramBankOrRtcSelect switch
+        {
+            // RAM Banks
+            <= 0x07 when ExternalRam.NumberOfBanks > 0 => ReadFromRamBank(ref address),
+            // RTC Registers (return latched values)
+            0x08 => _rtcSecondsLatched,
+            0x09 => _rtcMinutesLatched,
+            0x0A => _rtcHoursLatched,
+            0x0B => _rtcDaysLowLatched,
+            0x0C => _rtcDaysHighLatched,
+            _ => 0xFF
+        };
+    }
+    
+    private byte ReadFromRamBank(ref ushort address)
+    {
+        ExternalRam.CurrentBank = _ramBankOrRtcSelect % ExternalRam.NumberOfBanks;
+        return ExternalRam.ReadByte(ref address);
+    }
+    
+    private void UpdateRomBank()
+    {
+        // ROM Bank Number: 0x00 treated as 0x01
+        CurrentBank = _romBankNumber == 0 ? 1 : _romBankNumber;
+        CurrentBank %= NumberOfBanks;
+    }
+    
+    private void LatchRtcRegisters()
+    {
+        // Copy internal (ticking) RTC registers to latched (readable) registers
+        _rtcSecondsLatched = _rtcSeconds;
+        _rtcMinutesLatched = _rtcMinutes;
+        _rtcHoursLatched = _rtcHours;
+        _rtcDaysLowLatched = _rtcDaysLow;
+        _rtcDaysHighLatched = _rtcDaysHigh;
     }
 
     public override void IncrementByte(ref ushort memoryAddress)

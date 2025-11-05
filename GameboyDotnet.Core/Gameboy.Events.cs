@@ -13,4 +13,10 @@ public partial class Gameboy
     {
         DisplayUpdated.Invoke(this, e);
     }
+    
+    public event EventHandler FrameLimiterSwitched = null!;
+    protected virtual void OnFrameLimiterSwitched(EventArgs e)
+    {
+        FrameLimiterSwitched.Invoke(this, e);
+    }
 }

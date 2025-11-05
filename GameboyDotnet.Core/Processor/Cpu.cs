@@ -1,7 +1,7 @@
-﻿using System.Numerics;
-using GameboyDotnet.Components.Cpu;
+﻿using GameboyDotnet.Components.Cpu;
 using GameboyDotnet.Extensions;
 using GameboyDotnet.Memory;
+using GameboyDotnet.Sound;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet.Processor;
@@ -13,10 +13,10 @@ public partial class Cpu
     public bool IsHalted { get; set; }
     private readonly ILogger<Gameboy> _logger;
 
-    public Cpu(ILogger<Gameboy> logger)
+    public Cpu(ILogger<Gameboy> logger, MemoryController memoryController)
     {
         _logger = logger;
-        MemoryController = new MemoryController(logger);
+        MemoryController = memoryController;
     }
 
     public byte ExecuteNextOperation()
@@ -28,7 +28,7 @@ public partial class Cpu
             return 1;
         }
 
-        var opCode = MemoryController.ReadByte(Register.PC);
+        var opCode = MemoryController.ReadByte(address: Register.PC);
         var operationBlock = (opCode & 0b11000000) >> 6;
 
         var operationSize = operationBlock switch
@@ -40,43 +40,16 @@ public partial class Cpu
             _ => throw new NotImplementedException($"Operation {opCode:X2} not implemented")
         };
 
-        if (Register.IMEPending && opCode != 0xFB)
+        Register.PC += operationSize.instructionBytesLength;
+
+        // EI has a 1-instruction delay: IME is enabled after the next instruction completes
+        if (Register.IMEPending)
         {
             Register.IMEPending = false;
             Register.InterruptsMasterEnabled = true;
         }
-
-        Register.PC += operationSize.instructionBytesLength;
         
-        return (byte)(operationSize.durationTStates + (interruptHandled ? 5 : 0));
-    }
-
-    private bool HandleInterrupt()
-    {
-        var interruptFlags = MemoryController.ReadByte(Constants.IFRegister);
-        var interruptEnable = MemoryController.ReadByte(Constants.IERegister);
-        var interrupt = (byte)(interruptFlags & interruptEnable);
-
-        if (interrupt == 0 || !Register.InterruptsMasterEnabled) //TODO: https://gbdev.io/pandocs/halt.html
-            return false;
-
-        IsHalted = false;
-        var interruptIndex = BitOperations.TrailingZeroCount(interrupt);
-        Register.InterruptsMasterEnabled = false;
-        MemoryController.WriteByte(Constants.IFRegister, interruptFlags.ClearBit(interruptIndex));
-        PushStack(Register.PC);
-
-        Register.PC = (1 << interruptIndex) switch
-        {
-            0x01 => 0x0040,
-            0x02 => 0x0048,
-            0x04 => 0x0050,
-            0x08 => 0x0058,
-            0x10 => 0x0060,
-            _ => throw new ArgumentOutOfRangeException(nameof(interrupt), interrupt, "Invalid interrupt")
-        };
-
-        return true;
+        return (byte)(operationSize.durationTStates + (interruptHandled ? 20 : 0));
     }
 
     private bool CheckCondition(ref byte opCode)
@@ -93,8 +66,8 @@ public partial class Cpu
             _ => throw new ArgumentOutOfRangeException()
         };
     }
-    
-    
+
+
     // private void LogTestOutput(StreamWriter writer)
     // {
     //     var pcmem0 = MemoryController.ReadByte(Register.PC);

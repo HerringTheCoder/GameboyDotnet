@@ -5,39 +5,43 @@ namespace GameboyDotnet.Memory.Mbc;
 
 //https://gbdev.io/pandocs/MBC1.html
 
-public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks) 
-    : MemoryBankController(name, bankSizeInBytes, numberOfBanks)
+public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks, int ramBankCount) 
+    : MemoryBankController(name, bankSizeInBytes, numberOfBanks, ramBankCount)
 {
+    private int _romBankLower;  // 5-bit register (0x2000-0x3FFF)
+    private int _bankUpper;      // 2-bit register (0x4000-0x5FFF)
+    
     public override void WriteByte(ref ushort address, ref byte value)
     {
         switch (address)
         {
             case <= 0x1FFF:
-                ExternalRamEnabled = (value & 0x0A) == 0x0A;
+                // RAM Enable: lower 4 bits must be 0xA
+                ExternalRamEnabled = (value & 0x0F) == 0x0A;
                 break;
+                
             case <= 0x3FFF:
-            {
-                CurrentBank = value & 0x1F;
-                if(CurrentBank is 0x00 or 0x20 or 0x40 or 0x60)
-                    CurrentBank++;
+                // ROM Bank Number (lower 5 bits)
+                _romBankLower = value & 0x1F;
+                UpdateRomBank();
                 break;
-            }
-            case <= 0x5FFF when RomBankingMode is 0:
-            {
-                CurrentBank = (CurrentBank & 0x1F) | ((value & 0x03) << 5);
-                if(CurrentBank is 0x00 or 0x20 or 0x40 or 0x60)
-                    CurrentBank++;
-                break;
-            }
+                
             case <= 0x5FFF:
-                ExternalRam.CurrentBank = value & 0x03;
+                // RAM Bank Number OR Upper bits of ROM Bank Number
+                _bankUpper = value & 0x03;
+                UpdateRomBank();
+                UpdateRamBank();
                 break;
-            default:
+                
+            case <= 0x7FFF:
+                // Banking Mode Select
                 RomBankingMode = value & 0x01;
+                UpdateRomBank();
+                UpdateRamBank();
                 break;
         }
 
-        //Only External Ram writes are allowed
+        // Actual writes are only allowed on external ram
         if (address is < BankAddress.ExternalRamStart or > BankAddress.ExternalRamEnd) 
             return;
         
@@ -51,11 +55,46 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks)
     {
         return address switch
         {
-            <= BankAddress.RomBank0End => MemorySpace[address - StartAddress],
+            // Mode 1: 0000-3FFF uses upper bits for bank selection
+            <= BankAddress.RomBank0End when RomBankingMode == 1 && NumberOfBanks >= 64 
+                => MemorySpace[((_bankUpper << 5) % NumberOfBanks) * BankSizeInBytes + (address - StartAddress)],
+            // Mode 0 or small ROM: 0000-3FFF always bank 0
+            <= BankAddress.RomBank0End 
+                => MemorySpace[address - StartAddress],
+            // External RAM
             >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
-                => ExternalRamEnabled ? ExternalRam.ReadByte(ref address) : (byte)0xFF,
-            _ => MemorySpace[CurrentBank * BankSizeInBytes + address - BankAddress.RomBankNnStart]
+                => ExternalRamEnabled 
+                    ? ExternalRam.ReadByte(ref address) 
+                    : (byte)0xFF,
+            // 4000-7FFF: switchable ROM bank
+            _ => MemorySpace[(CurrentBank % NumberOfBanks) * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
         };
+    }
+    
+    private void UpdateRomBank()
+    {
+        // Calculate effective ROM bank for 4000-7FFF region
+        // Mode 0: upper bits apply to ROM
+        // Mode 1: upper bits don't apply to ROM (ROM limited to banks 0-31)
+        var effectiveBank = (RomBankingMode == 0 ? (_bankUpper << 5) : 0) | _romBankLower;
+        
+        // 00->01 translation: if lower 5 bits are 0, treat as 1
+        if (_romBankLower == 0)
+            effectiveBank |= 1;
+        
+        CurrentBank = effectiveBank % NumberOfBanks;
+    }
+    
+    private void UpdateRamBank()
+    {
+        // Mode 0: RAM locked to bank 0
+        // Mode 1: RAM uses upper bits register
+        if (ExternalRam.NumberOfBanks > 1)
+        {
+            ExternalRam.CurrentBank = RomBankingMode == 1 
+                ? _bankUpper % ExternalRam.NumberOfBanks 
+                : 0;
+        }
     }
     
     public override void IncrementByte(ref ushort memoryAddress)

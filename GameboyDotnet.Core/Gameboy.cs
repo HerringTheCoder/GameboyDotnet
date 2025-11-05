@@ -1,7 +1,9 @@
 ﻿using System.Diagnostics;
 using GameboyDotnet.Common;
 using GameboyDotnet.Graphics;
+using GameboyDotnet.Memory;
 using GameboyDotnet.Processor;
+using GameboyDotnet.Sound;
 using GameboyDotnet.Timers;
 using Microsoft.Extensions.Logging;
 
@@ -10,17 +12,24 @@ namespace GameboyDotnet;
 public partial class Gameboy
 {
     private ILogger<Gameboy> _logger;
+    public MemoryController MemoryController { get; }
     public Cpu Cpu { get; }
     public Ppu Ppu { get; }
-    public MainTimer TimaTimer { get; } = new();
-    public DividerTimer DivTimer { get; } = new();
-    public bool IsDebugMode { get; private set; }
+    public Apu Apu { get; }
+    public TimaTimer TimaTimer { get; }
+    public DivTimer DivTimer { get; }
+    public bool IsFrameLimiterEnabled;
+    public bool IsMemoryDumpRequested;
 
     public Gameboy(ILogger<Gameboy> logger)
     {
         _logger = logger;
-        Cpu = new Cpu(logger);
-        Ppu = new Ppu(Cpu.MemoryController);
+        Apu = new Apu();
+        MemoryController = new MemoryController(logger, Apu);
+        Cpu = new Cpu(logger, MemoryController);
+        Ppu = new Ppu(MemoryController);
+        TimaTimer = new TimaTimer(MemoryController);
+        DivTimer = new DivTimer(MemoryController);
     }
 
     public void LoadProgram(FileStream stream)
@@ -31,7 +40,8 @@ public partial class Gameboy
 
     public Task RunAsync(bool frameLimitEnabled, CancellationToken ctsToken)
     {
-        var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks;
+        IsFrameLimiterEnabled = frameLimitEnabled;
+        var frameTimeTicks = TimeSpan.FromMilliseconds(16.75).Ticks; //~59.7 Hz
         
         var cyclesPerFrame = Cycles.CyclesPerFrame;
         var currentCycles = 0;
@@ -42,32 +52,32 @@ public partial class Gameboy
             {
                 var startTime = Stopwatch.GetTimestamp();
                 var targetTime = startTime + frameTimeTicks;
-                while (currentCycles < cyclesPerFrame)
+                
+                while (currentCycles < cyclesPerFrame) //70224(Gameboy) or 140448 (Gameboy Color)
                 {
                     var tStates = Cpu.ExecuteNextOperation();
                     Ppu.PushPpuCycles(tStates);
-                    TimaTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
-                    DivTimer.CheckAndIncrementTimer(ref tStates, Cpu.MemoryController);
+                    TimaTimer.CheckAndIncrementTimer(ref tStates);
+                    DivTimer.CheckAndIncrementTimer(ref tStates);
+                    Apu.PushApuCycles(ref tStates);
                     currentCycles += tStates;
                 }
+                
                 UpdateJoypadState();
-
                 currentCycles -= cyclesPerFrame;
-                DisplayUpdated.Invoke(this, EventArgs.Empty);
-
-                // if (frameLimitEnabled)
-                // {
-                //     var remainingTime = targetTime - Stopwatch.GetTimestamp();
-                //     if (remainingTime > 0)
-                //     {
-                //         SpinWait.SpinUntil(() => Stopwatch.GetTimestamp() >= targetTime);
-                //     }
-                // }
-                if(frameLimitEnabled)
+                Ppu.FrameBuffer.EnqueueFrame(Ppu.Lcd);
+                
+                if (IsMemoryDumpRequested)
+                {
+                    DumpMemory();
+                    continue;
+                }
+                
+                if(IsFrameLimiterEnabled)
                 {
                     while (Stopwatch.GetTimestamp() < targetTime)
                     {
-                        //Wait in a tight loop for until target time is reached
+                        //Wait in a tight loop until the target time is reached
                     }
                 }
             }
@@ -81,10 +91,9 @@ public partial class Gameboy
         return Task.CompletedTask;
     }
 
-    public void SwitchDebugMode()
+    public void SwitchFramerateLimiter()
     {
-        _logger.LogInformation("Switching debug mode to {IsDebugMode}", !IsDebugMode);
-        IsDebugMode = !IsDebugMode;
-        _logger = LoggerHelper.GetLogger<Gameboy>(IsDebugMode ? LogLevel.Debug : LogLevel.Information);
+        IsFrameLimiterEnabled = !IsFrameLimiterEnabled;
+        _logger.LogWarning("Frame limiter is now '{IsFrameLimiterEnabled}'", IsFrameLimiterEnabled ? "enabled" : "disabled");
     }
 }

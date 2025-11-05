@@ -12,6 +12,7 @@ public partial class Cpu
     {
         if(_logger.IsEnabled(LogLevel.Debug))
             _logger.LogDebug("{opcode:X2} - ADD A, r8", opCode);
+        
         var value = MemoryController.ReadByte(Register.PC.Add(1));
         Set8BitAddCarryFlags(Register.A, value);
         Register.A = Register.A.Add(value);
