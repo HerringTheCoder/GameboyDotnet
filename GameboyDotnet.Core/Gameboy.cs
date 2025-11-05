@@ -79,13 +79,12 @@ public partial class Gameboy
                 while (currentCycles < cyclesPerFrame) //70224(Gameboy) or 140448 (Gameboy Color in double speed)
                 {
                     var instructionCycles = Cpu.ExecuteNextOperation();
-                    var divider = instructionCycles >= 7200 ? 255 : 4;
-                    var cycleIterations = instructionCycles / divider;
-                    byte cyclesRemainder = (byte)(instructionCycles % divider);
+                    var cycleIterations = instructionCycles / byte.MaxValue;
+                    byte cyclesRemainder = (byte)(instructionCycles % byte.MaxValue);
                     
                     for (byte i = 0; i <= cycleIterations; i++)
                     {
-                        var tStates = cycleIterations == i ? cyclesRemainder : (byte)divider;
+                        var tStates = cycleIterations == i ? cyclesRemainder : byte.MaxValue;
                         Ppu.PushPpuCycles(tStates);
                         TimaTimer.CheckAndIncrementTimer(ref tStates);
                         DivTimer.CheckAndIncrementTimer(ref tStates);

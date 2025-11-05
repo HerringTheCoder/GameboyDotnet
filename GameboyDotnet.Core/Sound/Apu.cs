@@ -29,22 +29,33 @@ public partial class Apu
     }
 
     private int SampleCounter = 87;
+    private bool _doubleSpeedApuTick = false; // Alternates between true/false in double-speed mode
 
     public void PushApuCycles(ref byte tCycles)
     {
         for (int i = tCycles; i > 0; i--)
         {
-            StepFrameSequencer();
-            SquareChannel1.Step();
-            SquareChannel2.Step();
-            WaveChannel.Step();
-            NoiseChannel.Step();
+            bool shouldStepApu = true;
+            if (Cycles.CgbDoubleSpeedMode)
+            {
+                _doubleSpeedApuTick = !_doubleSpeedApuTick;
+                shouldStepApu = _doubleSpeedApuTick;
+            }
+            
+            if (shouldStepApu)
+            {
+                StepFrameSequencer();
+                SquareChannel1.Step();
+                SquareChannel2.Step();
+                WaveChannel.Step();
+                NoiseChannel.Step();
+            }
 
             SampleCounter--;
             if (SampleCounter > 0)
                 continue;
-
-            SampleCounter = 87;
+            
+            SampleCounter = Cycles.CgbDoubleSpeedMode ? 174 : 87;
             if (IsAudioOn)
             {
                 var (leftSample, rightSample) = MixAudioChannelsToStereoSamples();
