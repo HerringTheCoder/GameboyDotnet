@@ -1,4 +1,5 @@
 # GameboyDotnet - Experimental Gameboy and Gameboy Color emulator written in Dotnet .NET C#
+Supports DMG mode and Audio
 
 Checklist:
 -  ~~Memory mapping with switchable banks~~
@@ -13,7 +14,7 @@ Checklist:
 -  ~~Running first MBC0 titles~~
 -  Extra Mappers (~~MBC1~~, ~~MBC3~~ and MBC5 at the very least)
 -  ~~RTC~~
--  Emulating sound
+-  ~~Emulating sound~~
 -  GB->GBC modes switching
 -  Adding GBC features
 -  Save/Load state
