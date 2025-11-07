@@ -1,11 +1,11 @@
-﻿namespace GameboyDotnet.Sound;
+﻿﻿namespace GameboyDotnet.Sound;
 
 public partial class Apu
 {
     //Frame sequencer is ticked at 512Hz, this should keep it steady between DMG and GBC modes
     private static readonly int FrameSequencerCyclesPerFrame = Cycles.CyclesPerSecond/512;
-    private int _frameSequencerCyclesTimer = FrameSequencerCyclesPerFrame;
-    private int _frameSequencerPosition = 0;
+    internal int _frameSequencerCyclesTimer = FrameSequencerCyclesPerFrame;
+    internal int _frameSequencerPosition = 0;
     
     private void StepFrameSequencer()
     {

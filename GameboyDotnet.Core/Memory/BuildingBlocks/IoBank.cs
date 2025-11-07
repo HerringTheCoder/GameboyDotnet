@@ -7,7 +7,7 @@ namespace GameboyDotnet.Memory.BuildingBlocks;
 public class IoBank : FixedBank
 {
     private readonly ILogger<Gameboy> _logger;
-    private byte _joypadRegister = 0xFF;
+    internal byte _joypadRegister = 0xFF;
     public byte DpadStates = 0xF;
     public byte ButtonStates = 0xF;
     private Apu _apu;

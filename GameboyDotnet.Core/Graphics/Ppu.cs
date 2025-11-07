@@ -9,15 +9,15 @@ namespace GameboyDotnet.Graphics;
 public class Ppu(MemoryController memoryController)
 {
     public FrameBuffer FrameBuffer { get; } = new();
-    private int _cyclesCounter;
-    private byte _ly;
-    private byte _windowLineCounter;
-    private bool _windowYConditionTriggered; // WY=LY was met this frame
+    internal int _cyclesCounter;
+    internal byte LyInternal;
+    internal byte _windowLineCounter;
+    internal bool _windowYConditionTriggered; // WY=LY was met this frame
     private readonly byte[] _bgColorLine = new byte[160]; // Track raw BG colors (0-3) for sprite priority
 
     private PpuMode CalculateCurrentPpuMode()
     {
-        if (_ly >= Lcd.ScreenHeight)
+        if (LyInternal >= Lcd.ScreenHeight)
             return PpuMode.VBlankMode1;
 
         return _cyclesCounter switch
@@ -49,7 +49,7 @@ public class Ppu(MemoryController memoryController)
         {
             case PpuMode.OamScanMode2:
                 // Check WY=LY condition at the start of Mode 2 (OAM scan)
-                if (_ly == Lcd.Wy && Lcd.WindowDisplay == WindowDisplay.Enabled)
+                if (LyInternal == Lcd.Wy && Lcd.WindowDisplay == WindowDisplay.Enabled)
                 {
                     _windowYConditionTriggered = true;
                 }
@@ -64,18 +64,18 @@ public class Ppu(MemoryController memoryController)
             case PpuMode.HBlankMode0:
                 if (_cyclesCounter >= Cycles.HBlankMode0CyclesThreshold)
                 {
-                    _ly++;
+                    LyInternal++;
                     _cyclesCounter -= Cycles.HBlankMode0CyclesThreshold;
                 }
                 break;
             case PpuMode.VBlankMode1:
                 if (_cyclesCounter >= Cycles.VBlankMode1CyclesThreshold)
                 {
-                    _ly++;
+                    LyInternal++;
                     _cyclesCounter -= Cycles.VBlankMode1CyclesThreshold;
-                    if (_ly == Lcd.ScreenHeight + 10)
+                    if (LyInternal == Lcd.ScreenHeight + 10)
                     {
-                        _ly = 0;
+                        LyInternal = 0;
                         _windowLineCounter = 0; // Reset window line counter at the start of a new frame
                         _windowYConditionTriggered = false; // Reset WY condition for new frame
                     }
@@ -83,9 +83,9 @@ public class Ppu(MemoryController memoryController)
                 break;
         }
         
-        if (previousLy != _ly)
+        if (previousLy != LyInternal)
         {
-            Lcd.UpdateLy(_ly);
+            Lcd.UpdateLy(LyInternal);
         }
 
         var currentPpuMode = CalculateCurrentPpuMode();
@@ -117,7 +117,7 @@ public class Ppu(MemoryController memoryController)
             var y = oamMemoryView[oamOffset] - 16;
             var objSize = (byte)Lcd.ObjSize;
             
-            if (_ly < y || _ly >= y + objSize)
+            if (LyInternal < y || LyInternal >= y + objSize)
                 continue;
             
             var x = oamMemoryView[oamOffset.Add(1)] - 8;
@@ -154,7 +154,7 @@ public class Ppu(MemoryController memoryController)
 
             var tileAddress = (ushort)(0x8000 + tileNumber * 16);
             //Calculate tile line to render
-            var tileLine = attributes.yFlipped ? objSize - 1 - (_ly - y) : _ly - y;
+            var tileLine = attributes.yFlipped ? objSize - 1 - (LyInternal - y) : LyInternal - y;
             var tileLineAddress = tileAddress.Add((ushort)(tileLine * 2));
             var tileLineData = memoryController.ReadWord(tileLineAddress);
 
@@ -189,7 +189,7 @@ public class Ppu(MemoryController memoryController)
                 }
                 
                 if (shouldDrawSprite)
-                    Lcd.Buffer[screenX, _ly] = paletteColor;
+                    Lcd.Buffer[screenX, LyInternal] = paletteColor;
             }
         }
     }
@@ -227,7 +227,7 @@ public class Ppu(MemoryController memoryController)
                 : (ushort)Lcd.BgTileMapArea;
 
             // Use window line counter for window, otherwise use scrolled position
-            var yPos = isWindow ? _windowLineCounter : _ly.Add(scy);
+            var yPos = isWindow ? _windowLineCounter : LyInternal.Add(scy);
             var xPos = isWindow ? pixel.Subtract(wx) : pixel.Add(scx);
             
             var tileLineIndex = (byte)((yPos & 0b111) * 2);
@@ -260,11 +260,11 @@ public class Ppu(MemoryController memoryController)
             // CGB mode behavior: LCDC bit 0 affects priority but BG/Window still render
             if (!isBgWindowEnabled)
             {
-                Lcd.Buffer[pixel, _ly] = 0; // Force white (DMG mode)
+                Lcd.Buffer[pixel, LyInternal] = 0; // Force white (DMG mode)
             }
             else
             {
-                Lcd.Buffer[pixel, _ly] = paletteColor;
+                Lcd.Buffer[pixel, LyInternal] = paletteColor;
             }
         }
         

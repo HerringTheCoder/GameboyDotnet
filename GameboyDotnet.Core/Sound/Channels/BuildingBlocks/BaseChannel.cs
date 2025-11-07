@@ -196,4 +196,51 @@ public abstract class BaseChannel()
     {
         PeriodTimer = (2048 - GetPeriodValueFromRegisters) * 4;
     }
+
+    internal void DumpRegisters(ref Span<byte> memoryDump, ref int index)
+    {
+        //TODO: Some of these are exceeding byte, also check if all integers need to be ones.
+        //Also, flags can be likely stored in a single byte
+        memoryDump[index++] = (byte)(IsChannelOn ? 1 : 0);
+        memoryDump[index++] = (byte)(IsRightSpeakerOn ? 1 : 0);
+        memoryDump[index++] = (byte)(IsLeftSpeakerOn ? 1 : 0);
+        (memoryDump[index++], memoryDump[index++]) = InitialLengthTimer.ToBytesPair();
+        (memoryDump[index++], memoryDump[index++]) = VolumeEnvelopePace.ToBytesPair();
+        memoryDump[index++] = (byte)(VolumeEnvelopeDirection == EnvelopeDirection.Ascending ? 1 : 0);
+        memoryDump[index++] = (byte)InitialVolume;
+        memoryDump[index++] = (byte)(IsDacEnabled ? 1 : 0);
+        memoryDump[index++] = PeriodLowOrRandomness;
+        memoryDump[index++] = PeriodHigh;
+        memoryDump[index++] = (byte)(IsLengthEnabled ? 1 : 0);
+        (memoryDump[index++], memoryDump[index++]) = LengthTimer.ToBytesPair();
+        (memoryDump[index++], memoryDump[index++]) = PeriodTimer.ToBytesPair();
+        (memoryDump[index++], memoryDump[index++]) = VolumeEnvelopeTimer.ToBytesPair();
+        memoryDump[index++] = (byte)VolumeLevel;
+        memoryDump[index++] = (byte)(VolumeEnvelopeRunning ? 1 : 0);
+    }
+
+    internal void LoadRegistersFromDump(ReadOnlySpan<byte> memoryDump, ref int index)
+    {
+        IsChannelOn = memoryDump[index++] == 1;
+        IsRightSpeakerOn = memoryDump[index++] == 1;
+        IsLeftSpeakerOn = memoryDump[index++] == 1;
+        InitialLengthTimer = memoryDump.Slice(index, 2).ToInt();
+        index += 2;
+        VolumeEnvelopePace = memoryDump.Slice(index, 2).ToInt();
+        index += 2;
+        VolumeEnvelopeDirection = memoryDump[index++] == 1 ? EnvelopeDirection.Ascending : EnvelopeDirection.Descending;
+        InitialVolume = memoryDump[index++];
+        IsDacEnabled = memoryDump[index++] == 1;
+        PeriodLowOrRandomness = memoryDump[index++];
+        PeriodHigh = memoryDump[index++];
+        IsLengthEnabled = memoryDump[index++] == 1;
+        LengthTimer = memoryDump.Slice(index, 2).ToInt();
+        index += 2;
+        PeriodTimer = memoryDump.Slice(index, 2).ToInt();
+        index += 2;
+        VolumeEnvelopeTimer = memoryDump.Slice(index, 2).ToInt();
+        index += 2;
+        VolumeLevel = memoryDump[index++];
+        VolumeEnvelopeRunning = memoryDump[index++] == 1;
+    }
 }

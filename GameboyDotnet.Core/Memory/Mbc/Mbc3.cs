@@ -31,23 +31,23 @@ public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks, int ramBa
         switch (address)
         {
             case <= 0x1FFF:
-                // RAM and Timer Enable: lower 4 bits must be 0xA
-                ExternalRamEnabled = (value & 0x0F) == 0x0A;
+                // 0000 - 1FFF - RAM and Timer Enable: lower 4 bits must be 0xA
+                ExternalRamAndRtcEnabled = (value & 0x0F) == 0x0A;
                 break;
                 
-            case <= 0x3FFF:
-                // ROM Bank Number (7 bits)
+            case <= BankAddress.RomBank0End:
+                // 2000 - 3FFF - ROM Bank Number (7 bits)
                 _romBankNumber = value & 0x7F;
                 UpdateRomBank();
                 break;
                 
             case <= 0x5FFF:
-                // RAM Bank Number (0x00-0x07) or RTC Register Select (0x08-0x0C)
-                if (value is <= 0x07 or >= 0x08 and <= 0x0C)
+                // 4000 - 5FFF - RAM Bank Number (0x00-0x07) or RTC Register Select (0x08-0x0C)
+                if (value <= 0x0C)
                     _ramBankOrRtcSelect = value;
                 break;
                 
-            case <= 0x7FFF:
+            case <= BankAddress.RomBankNnEnd:
                 // Latch Clock Data: Write $00 then $01 to latch
                 if (_latchClockData == 0x00 && value == 0x01)
                     LatchRtcRegisters();
@@ -62,7 +62,7 @@ public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks, int ramBa
     
     private void WriteRamOrRtc(ref ushort address, ref byte value)
     {
-        if (!ExternalRamEnabled)
+        if (!ExternalRamAndRtcEnabled)
             return;
             
         switch (_ramBankOrRtcSelect)
@@ -96,18 +96,18 @@ public class Mbc3(string name, int bankSizeInBytes, int numberOfBanks, int ramBa
         {
             // 0000-3FFF: ROM Bank 00
             <= BankAddress.RomBank0End 
-                => MemorySpace[address - StartAddress],
+                => MemorySpaceView[address - StartAddress],
             // A000-BFFF: RAM Bank or RTC Register
             >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
                 => ReadRamOrRtc(ref address),
             // 4000-7FFF: Switchable ROM Bank
-            _ => MemorySpace[(CurrentBank % NumberOfBanks) * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
+            _ => MemorySpaceView[CurrentBank * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
         };
     }
     
     private byte ReadRamOrRtc(ref ushort address)
     {
-        if (!ExternalRamEnabled)
+        if (!ExternalRamAndRtcEnabled)
             return 0xFF;
             
         return _ramBankOrRtcSelect switch

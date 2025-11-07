@@ -17,11 +17,11 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks, int ramB
         {
             case <= 0x1FFF:
                 // RAM Enable: lower 4 bits must be 0xA
-                ExternalRamEnabled = (value & 0x0F) == 0x0A;
+                ExternalRamAndRtcEnabled = (value & 0x0F) == 0x0A;
                 break;
                 
-            case <= 0x3FFF:
-                // ROM Bank Number (lower 5 bits)
+            case <= BankAddress.RomBank0End:
+                // 2000 - 3FFF - ROM Bank Number (lower 5 bits)
                 _romBankLower = value & 0x1F;
                 UpdateRomBank();
                 break;
@@ -33,22 +33,17 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks, int ramB
                 UpdateRamBank();
                 break;
                 
-            case <= 0x7FFF:
+            case <= BankAddress.RomBankNnEnd:
                 // Banking Mode Select
                 RomBankingMode = value & 0x01;
                 UpdateRomBank();
                 UpdateRamBank();
                 break;
-        }
-
-        // Actual writes are only allowed on external ram
-        if (address is < BankAddress.ExternalRamStart or > BankAddress.ExternalRamEnd) 
-            return;
-        
-        if (!ExternalRamEnabled)
-            return;
             
-        ExternalRam.WriteByte(ref address, ref value);
+            case >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd when ExternalRamAndRtcEnabled:
+                ExternalRam.WriteByte(ref address, ref value);
+                break;
+        }
     }
 
     public override byte ReadByte(ref ushort address)
@@ -60,14 +55,14 @@ public class Mbc1( string name, int bankSizeInBytes, int numberOfBanks, int ramB
                 => MemorySpace[((_bankUpper << 5) % NumberOfBanks) * BankSizeInBytes + (address - StartAddress)],
             // Mode 0 or small ROM: 0000-3FFF always bank 0
             <= BankAddress.RomBank0End 
-                => MemorySpace[address - StartAddress],
+                => MemorySpaceView[address - StartAddress],
             // External RAM
             >= BankAddress.ExternalRamStart and <= BankAddress.ExternalRamEnd 
-                => ExternalRamEnabled 
+                => ExternalRamAndRtcEnabled 
                     ? ExternalRam.ReadByte(ref address) 
                     : (byte)0xFF,
             // 4000-7FFF: switchable ROM bank
-            _ => MemorySpace[(CurrentBank % NumberOfBanks) * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
+            _ => MemorySpaceView[CurrentBank * BankSizeInBytes + (address - BankAddress.RomBankNnStart)]
         };
     }
     

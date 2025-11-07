@@ -5,6 +5,7 @@ using GameboyDotnet.Memory;
 using GameboyDotnet.Processor;
 using GameboyDotnet.Sound;
 using GameboyDotnet.Timers;
+using GameboyDotnet.Tools;
 using Microsoft.Extensions.Logging;
 
 namespace GameboyDotnet;
@@ -18,8 +19,10 @@ public partial class Gameboy
     public Apu Apu { get; }
     public TimaTimer TimaTimer { get; }
     public DivTimer DivTimer { get; }
+
     public bool IsFrameLimiterEnabled;
-    public bool IsMemoryDumpRequested;
+    public bool IsSaveStateRequested;
+    public bool IsLoadStateRequested;
 
     public Gameboy(ILogger<Gameboy> logger)
     {
@@ -32,9 +35,10 @@ public partial class Gameboy
         DivTimer = new DivTimer(MemoryController);
     }
 
-    public void LoadProgram(FileStream stream)
+    public void LoadProgram(FileStream stream, string romPath)
     {
         Cpu.MemoryController.LoadProgram(stream);
+        SaveDumper.RomPath = romPath;
         _logger.LogInformation("Program loaded successfully");
     }
 
@@ -67,10 +71,16 @@ public partial class Gameboy
                 currentCycles -= cyclesPerFrame;
                 Ppu.FrameBuffer.EnqueueFrame(Ppu.Lcd);
                 
-                if (IsMemoryDumpRequested)
+                if(IsSaveStateRequested)
                 {
-                    DumpMemory();
-                    continue;
+                    SaveDumper.SaveState(this);
+                    IsSaveStateRequested = false;
+                }
+                
+                if(IsLoadStateRequested)
+                {
+                    SaveDumper.LoadState(this);
+                    IsLoadStateRequested = false;
                 }
                 
                 if(IsFrameLimiterEnabled)

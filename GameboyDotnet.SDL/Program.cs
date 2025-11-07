@@ -1,10 +1,8 @@
-﻿using System.Diagnostics;
-using GameboyDotnet;
+﻿using GameboyDotnet;
 using GameboyDotnet.Common;
-using GameboyDotnet.Graphics;
 using GameboyDotnet.SDL;
-using GameboyDotnet.SDL.SaveStates;
 using GameboyDotnet.Sound;
+using GameboyDotnet.Tools;
 using Microsoft.Extensions.Configuration;
 using static SDL2.SDL;
 
@@ -30,7 +28,7 @@ var audioPlayer = new SdlAudio(gameboy.Apu.AudioBuffer);
 audioPlayer.Initialize();
 
 var stream = File.OpenRead(romPath);
-gameboy.LoadProgram(stream);
+gameboy.LoadProgram(stream, romPath);
 
 var cts = new CancellationTokenSource();
 bool running = true;
@@ -56,11 +54,11 @@ while (running && !cts.IsCancellationRequested)
             case SDL_EventType.SDL_KEYDOWN:
                 switch (e.key.keysym.sym)
                 {
-                    case SDL_Keycode.SDLK_F5:
-                        gameboy.IsMemoryDumpRequested = true;
+                    case SDL_Keycode.SDLK_F6:
+                        gameboy.IsSaveStateRequested = true;
                         break;
                     case SDL_Keycode.SDLK_F8:
-                        SaveDumper.LoadState(gameboy, romPath);
+                        gameboy.IsLoadStateRequested = true;
                         break;
                     case SDL_Keycode.SDLK_p:
                         gameboy.SwitchFramerateLimiter();
