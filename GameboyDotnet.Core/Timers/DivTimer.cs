@@ -4,15 +4,15 @@ namespace GameboyDotnet.Timers;
 
 public class DivTimer(MemoryController memoryController)
 {
-    private int _dividerCycleCounter;
-    
+    internal int DividerCycleCounter;
+
     internal void CheckAndIncrementTimer(ref byte tStates)
     {
-        _dividerCycleCounter += tStates;
+        DividerCycleCounter += tStates;
         
-        if (_dividerCycleCounter >= Cycles.DividerCycles)
+        if (DividerCycleCounter >= Cycles.DividerCycles)
         { 
-            _dividerCycleCounter -= Cycles.DividerCycles;
+            DividerCycleCounter -= Cycles.DividerCycles;
             
             memoryController.IncrementByte(Constants.DIVRegister);
         }

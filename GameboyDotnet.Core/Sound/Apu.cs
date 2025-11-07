@@ -1,5 +1,4 @@
-﻿using GameboyDotnet.Extensions;
-using GameboyDotnet.Sound.Channels;
+﻿using GameboyDotnet.Sound.Channels;
 using GameboyDotnet.Sound.Channels.BuildingBlocks;
 
 namespace GameboyDotnet.Sound;
@@ -12,9 +11,9 @@ public partial class Apu
     public WaveChannel WaveChannel { get; private set; }
     public NoiseChannel NoiseChannel { get; private set; }
     public BaseChannel[] AvailableChannels { get; private set; }
-    public bool IsAudioOn { get; private set; }
-    public byte LeftMasterVolume { get; private set; }
-    public byte RightMasterVolume { get; private set; }
+    public bool IsAudioOn { get; internal set; }
+    public byte LeftMasterVolume { get; internal set; }
+    public byte RightMasterVolume { get; internal set; }
     
     private const int MaxDigitalSumOfOutputPerStereoChannel = 15 * 4 * 7; //4 channels, 0-15 volume level each, 0-7 Left/Right Master volume level
 
@@ -28,7 +27,7 @@ public partial class Apu
         AvailableChannels = [SquareChannel1, SquareChannel2, WaveChannel, NoiseChannel];
     }
 
-    private int SampleCounter = 87;
+    internal int SampleCounter = 87;
 
     public void PushApuCycles(ref byte tCycles)
     {

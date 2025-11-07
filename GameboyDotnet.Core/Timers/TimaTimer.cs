@@ -6,21 +6,21 @@ namespace GameboyDotnet.Timers;
 
 public class TimaTimer(MemoryController memoryController)
 {
-    private int _tStatesCounter;
+    internal int TStatesCounter;
     private const int TimaControlIORegisterOffset = 0x07;
-    
+
     internal void CheckAndIncrementTimer(ref byte durationTStates)
     {
         var timerControl = memoryController.IoRegisters.MemorySpaceView[TimaControlIORegisterOffset];
         if (!timerControl.IsBitSet(2)) //Timer is disabled, do nothing
             return;
         
-        _tStatesCounter += durationTStates;
+        TStatesCounter += durationTStates;
         var timerTCycles = GetTimerTCycles(timerControl);
 
-        if (_tStatesCounter >= timerTCycles)
+        if (TStatesCounter >= timerTCycles)
         {
-            _tStatesCounter -= timerTCycles; //Reset the counter, but keep the remainder
+            TStatesCounter -= timerTCycles; //Reset the counter, but keep the remainder
             memoryController.IncrementByte(Constants.TIMARegister);
             var timerValue = memoryController.ReadByte(Constants.TIMARegister);
 
