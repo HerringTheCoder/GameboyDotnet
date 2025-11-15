@@ -7,7 +7,13 @@ namespace GameboyDotnet;
 
 public partial class Gameboy
 {
-    public void DumpWritableMemory(Span<byte> memoryDump, int totalExternalRamSize)
+    /// <summary>
+    /// Dumps memory into provided span. Returns actual number of bytes stored.
+    /// </summary>
+    /// <param name="memoryDump"></param>
+    /// <param name="totalExternalRamSize"></param>
+    /// <returns></returns>
+    public int DumpWritableMemory(Span<byte> memoryDump, int totalExternalRamSize)
     {
         for (var i = 0; i < memoryDump.Length; i++)
         {
@@ -80,9 +86,16 @@ public partial class Gameboy
             mbcN.ExternalRam.MemorySpaceView.CopyTo(memoryDump.Slice(index, totalExternalRamSize));
             index += totalExternalRamSize;
         }
+        
         _logger.LogWarning("Memory dump created. Stored {Index} actual bytes", index);
+
+        return index + 1;
     }
 
+    /// <summary>
+    /// Loads memory dump from provided byte array.
+    /// </summary>
+    /// <param name="memoryDump"></param>
     public void LoadMemoryDump(byte[] memoryDump)
     {
         List<FixedBank> fixedBanks =

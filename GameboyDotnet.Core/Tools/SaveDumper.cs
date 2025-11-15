@@ -12,16 +12,17 @@ public static class SaveDumper
         try
         {
             var totalExternalRamSize = 0;
-            var saveFileSize = 64 * 1024; //Base memory size
+            var expectedSaveFileSize = 64 * 1024; //Base memory size: 64KB
+            
             if (gameboy.MemoryController.RomBankNn is MemoryBankController mbc)
             {
                 totalExternalRamSize = mbc.ExternalRam.NumberOfBanks * mbc.ExternalRam.BankSizeInBytes;
-                saveFileSize += totalExternalRamSize;
+                expectedSaveFileSize += totalExternalRamSize;
             }
-            var sharedArray = ArrayPool<byte>.Shared.Rent(saveFileSize);
+            var sharedArray = ArrayPool<byte>.Shared.Rent(expectedSaveFileSize);
             
-            gameboy.DumpWritableMemory(sharedArray.AsSpan(), totalExternalRamSize);
-            File.WriteAllBytes(savePath, sharedArray.AsSpan(0, saveFileSize));
+            var actualStoredBytes = gameboy.DumpWritableMemory(sharedArray.AsSpan(), totalExternalRamSize);
+            File.WriteAllBytes(savePath, sharedArray.AsSpan(0, length: actualStoredBytes));
             Console.WriteLine("Saved state");
             
             ArrayPool<byte>.Shared.Return(sharedArray);
